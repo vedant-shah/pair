@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Scrollbar Styles */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #444;
+}
+
+/* Flash Animations */
+@keyframes flashGreen {
+  0% {
+    color: inherit;
+  }
+  50% {
+    color: #00ffd1;
+  }
+  100% {
+    color: inherit;
+  }
+}
+
+@keyframes flashRed {
+  0% {
+    color: inherit;
+  }
+  50% {
+    color: #ff5b5b;
+  }
+  100% {
+    color: inherit;
+  }
+}
+
+.flash-green {
+  animation: flashGreen 0.3s ease-out;
+}
+
+.flash-red {
+  animation: flashRed 0.3s ease-out;
+}
