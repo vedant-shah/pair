@@ -1,51 +1,74 @@
 import React, { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
-const ChartHeader = () => {
+const ChartHeader = ({
+  allCoins,
+  firstAsset,
+  secondAsset,
+  setFirstAsset,
+  setSecondAsset,
+}) => {
+  const [openFirst, setOpenFirst] = React.useState(false);
+  const [openSecond, setOpenSecond] = React.useState(false);
+
   const [marketData, setMarketData] = useState({
-    pair: "SOL-USD",
-    mark: 194.02,
-    oracle: 193.89,
-    change24h: -2.43,
-    changePercent24h: -1.24,
-    volume24h: 228453884.7,
-    openInterest: 283928994.96,
-    funding: 0.0013,
-    countdown: "00:27:00",
+    coin: "SOL",
+    ctx: {
+      funding: 0.0,
+      openInterest: 0.0,
+      prevDayPx: 0.0,
+      dayNtlVlm: 0.0,
+      premium: 0.0,
+      oraclePx: 0.0,
+      markPx: 0.0,
+      midPx: 0.0,
+      impactPxs: [0.0, 0.0],
+      dayBaseVlm: 0.0,
+    },
   });
 
   const [flashStates, setFlashStates] = useState({
     mark: null,
     change24h: null,
-    funding: null,
   });
 
   useEffect(() => {
-    const ws = new WebSocket("ws://localhost:8080");
+    const ws = new WebSocket("wss://api.hyperliquid.xyz/ws");
+
+    ws.onopen = () => {
+      console.log("connected");
+      ws.send(
+        JSON.stringify({
+          method: "subscribe",
+          subscription: { type: "activeAssetCtx", coin: "SOL" },
+        })
+      );
+    };
 
     ws.onmessage = (event) => {
       const message = JSON.parse(event.data);
-      if (message.type === "market_data") {
+      if (message.channel === "activeAssetCtx") {
         setMarketData((prev) => {
           // Determine flash states
           const newFlashStates = {
-            mark:
-              message.data.mark > prev.mark
-                ? "up"
-                : message.data.mark < prev.mark
-                ? "down"
-                : null,
+            mark: message.data.ctx.markPx >= prev.ctx.markPx ? "up" : "down",
             change24h:
-              message.data.change24h > prev.change24h
+              message.data.ctx.markPx > message.data.ctx.prevDayPx
                 ? "up"
-                : message.data.change24h < prev.change24h
-                ? "down"
-                : null,
-            funding:
-              message.data.funding > prev.funding
-                ? "up"
-                : message.data.funding < prev.funding
-                ? "down"
-                : null,
+                : "down",
           };
           setFlashStates(newFlashStates);
 
@@ -54,10 +77,8 @@ const ChartHeader = () => {
             setFlashStates({
               mark: null,
               change24h: null,
-              funding: null,
             });
           }, 1000);
-
           return message.data;
         });
       }
@@ -66,32 +87,132 @@ const ChartHeader = () => {
     return () => ws.close();
   }, []);
 
-  const formatNumber = (num) => {
-    if (Math.abs(num) >= 1000000) {
-      return (num / 1000000).toFixed(2) + "M";
-    }
-    return num.toLocaleString();
-  };
-
   return (
     <div className="flex items-center gap-6 px-4 py-2 bg-[#041318] border-b border-gray-800">
       {/* Coin Pair Selector */}
-      <div className="flex items-center gap-2 min-w-[120px] px-3 py-1.5 bg-[#293233] rounded cursor-pointer hover:bg-[#2f393a]">
-        <span className="text-[13px] text-white">SOL-USD</span>
-        <svg
-          className="w-4 h-4 text-gray-400"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M19 9l-7 7-7-7"
-          />
-        </svg>
+      <div className="flex items-center gap-2">
+        <Popover open={openFirst} onOpenChange={setOpenFirst}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              role="combobox"
+              aria-expanded={openFirst}
+              className="w-[80px] justify-between">
+              {firstAsset ? (
+                <div className="flex items-center justify-center gap-1">
+                  <img
+                    src={`https://app.hyperliquid.xyz/coins/${firstAsset}.svg`}
+                    alt={firstAsset}
+                    onError={(e) => {
+                      e.target.src =
+                        "https://app.hyperliquid.xyz/coins/missing.svg";
+                    }}
+                    className="w-4 h-4 "
+                  />
+                  {firstAsset}
+                </div>
+              ) : (
+                "Select Coin..."
+              )}
+              {/* <ChevronsUpDown className="opacity-50" /> */}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[100px] p-0 bg-[#041318]">
+            <Command className="bg-[#041318] text-white">
+              <CommandInput placeholder="Asset 1" />
+              <CommandList>
+                <CommandEmpty>No Coin found.</CommandEmpty>
+                <CommandGroup>
+                  {allCoins?.map((coin) => (
+                    <CommandItem
+                      key={coin}
+                      value={coin}
+                      className="text-white"
+                      onSelect={(currentValue) => {
+                        setFirstAsset(
+                          currentValue === firstAsset ? "" : currentValue
+                        );
+                        setOpenFirst(false);
+                      }}>
+                      <img
+                        src={`https://app.hyperliquid.xyz/coins/${coin}.svg`}
+                        alt={coin}
+                        onError={(e) => {
+                          e.target.src =
+                            "https://app.hyperliquid.xyz/coins/missing.svg";
+                        }}
+                        className="w-4 h-4 mr-2"
+                      />
+                      {coin}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
+        <h1 className="text-xl font-bold text-white">-</h1>
+        <Popover open={openSecond} onOpenChange={setOpenSecond}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              role="combobox"
+              aria-expanded={openSecond}
+              className="w-[80px] justify-between">
+              {secondAsset ? (
+                <div className="flex items-center justify-center gap-1">
+                  <img
+                    src={`https://app.hyperliquid.xyz/coins/${secondAsset}.svg`}
+                    alt={secondAsset}
+                    onError={(e) => {
+                      e.target.src =
+                        "https://app.hyperliquid.xyz/coins/missing.svg";
+                    }}
+                    className="w-4 h-4 "
+                  />
+                  {secondAsset}
+                </div>
+              ) : (
+                "Select Coin..."
+              )}
+              {/* <ChevronsUpDown className="opacity-50" /> */}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[100px] p-0 bg-[#041318]">
+            <Command className="bg-[#041318] text-white">
+              <CommandInput placeholder="Asset 1" />
+              <CommandList>
+                <CommandEmpty>No Coin found.</CommandEmpty>
+                <CommandGroup>
+                  {allCoins?.map((coin) => (
+                    <CommandItem
+                      key={coin}
+                      value={coin}
+                      className="text-white"
+                      onSelect={(currentValue) => {
+                        setSecondAsset(
+                          currentValue === secondAsset ? "" : currentValue
+                        );
+                        setOpenSecond(false);
+                      }}>
+                      <img
+                        src={`https://app.hyperliquid.xyz/coins/${coin}.svg`}
+                        alt={coin}
+                        onError={(e) => {
+                          e.target.src =
+                            "https://app.hyperliquid.xyz/coins/missing.svg";
+                        }}
+                        className="w-4 h-4 mr-2"
+                      />
+                      {coin}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
       </div>
-
       {/* Stats */}
       <div className="flex items-center gap-6">
         {/* Mark Price */}
@@ -107,7 +228,7 @@ const ChartHeader = () => {
                 ? "flash-red"
                 : "text-white"
             }`}>
-            {marketData.mark.toFixed(2)}
+            {Number(marketData.ctx.markPx).toFixed(2)}
           </span>
         </div>
 
@@ -117,7 +238,7 @@ const ChartHeader = () => {
             Oracle
           </span>
           <span className="font-mono text-[13px] text-white min-w-[80px]">
-            {marketData.oracle.toFixed(2)}
+            {Number(marketData.ctx.oraclePx).toFixed(2)}
           </span>
         </div>
 
@@ -129,23 +250,27 @@ const ChartHeader = () => {
           <div className="flex items-center gap-1 min-w-[100px]">
             <span
               className={`font-mono text-[13px] ${
-                flashStates.change24h === "up"
-                  ? "flash-green"
-                  : flashStates.change24h === "down"
-                  ? "flash-red"
-                  : marketData.change24h >= 0
+                marketData.ctx.markPx >= marketData.ctx.prevDayPx
                   ? "text-[#50d2c1]"
                   : "text-[#ED7088]"
               }`}>
-              {marketData.change24h.toFixed(2)}
-            </span>
-            <span
-              className={`font-mono text-[13px] ${
-                marketData.changePercent24h >= 0
-                  ? "text-[#50d2c1]"
-                  : "text-[#ED7088]"
-              }`}>
-              ({marketData.changePercent24h.toFixed(2)}%)
+              {(Number(marketData.ctx.markPx) -
+                Number(marketData.ctx.prevDayPx) >=
+              0
+                ? "+"
+                : "") +
+                (
+                  Number(marketData.ctx.markPx) -
+                  Number(marketData.ctx.prevDayPx)
+                ).toFixed(2) +
+                " / " +
+                (
+                  ((Number(marketData.ctx.markPx) -
+                    Number(marketData.ctx.prevDayPx)) *
+                    100) /
+                  Number(marketData.ctx.prevDayPx)
+                ).toFixed(2) +
+                "%"}
             </span>
           </div>
         </div>
@@ -156,7 +281,11 @@ const ChartHeader = () => {
             24h Volume
           </span>
           <span className="font-mono text-[13px] text-white min-w-[100px]">
-            ${formatNumber(marketData.volume24h)}
+            $
+            {Number(marketData.ctx.dayNtlVlm).toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
           </span>
         </div>
 
@@ -166,12 +295,19 @@ const ChartHeader = () => {
             Open Interest
           </span>
           <span className="font-mono text-[13px] text-white min-w-[100px]">
-            ${formatNumber(marketData.openInterest)}
+            $
+            {(
+              Number(marketData.ctx.openInterest) *
+              Number(marketData.ctx.oraclePx)
+            ).toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
           </span>
         </div>
 
         {/* Funding */}
-        <div className="flex flex-col">
+        {/* <div className="flex flex-col">
           <span className="text-[12px] text-gray-400 underline decoration-gray-400 underline-offset-4">
             Funding
           </span>
@@ -192,7 +328,7 @@ const ChartHeader = () => {
               {marketData.countdown}
             </span>
           </div>
-        </div>
+        </div> */}
       </div>
     </div>
   );

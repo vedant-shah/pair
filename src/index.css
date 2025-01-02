@@ -52,3 +52,9 @@
 .flash-red {
   animation: flashRed 0.3s ease-out;
 }
+
+@layer base {
+  :root {
+    --radius: 0.5rem;
+  }
+}
