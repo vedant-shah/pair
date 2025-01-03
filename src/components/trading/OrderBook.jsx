@@ -66,14 +66,14 @@ const OrderBook = ({ firstAsset, secondAsset, buyOrSell }) => {
     };
   }, [firstAsset, secondAsset, processOrderBookData]); // Remove buyOrSell from here
 
-  const OrderRow = ({ price, size, side, total }) => {
+  const OrderRow = ({ price, size, side, total, maxTotal }) => {
     return (
-      <div className="grid grid-cols-3 h-[23px] text-sm items-center relative my-[4px]">
+      <div className="grid grid-cols-3 h-[23px] text-sm items-center relative my-[3px]">
         <div
           className={`absolute top-0 left-0 h-full ${
             side === "bid" ? "bg-[#50d2c1]" : "bg-[#ED7088]"
           }`}
-          style={{ width: `${Math.min(100, total)}%`, opacity: 0.15 }}
+          style={{ width: `${(total * 100) / maxTotal}%`, opacity: 0.15 }}
         />
         <span
           className={`font-mono pl-2 relative ${
@@ -121,6 +121,7 @@ const OrderBook = ({ firstAsset, secondAsset, buyOrSell }) => {
               size={ask.size}
               side="ask"
               total={ask.total}
+              maxTotal={Math.max(...orderBook.sell.map((obj) => obj.total))}
             />
           ))}
         </div>
@@ -140,6 +141,7 @@ const OrderBook = ({ firstAsset, secondAsset, buyOrSell }) => {
               size={bid.size}
               side="bid"
               total={bid.total}
+              maxTotal={Math.max(...orderBook.buy.map((obj) => obj.total))}
             />
           ))}
         </div>

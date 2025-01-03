@@ -11,6 +11,7 @@ function App() {
   const [firstAsset, setFirstAsset] = React.useState("BTC");
   const [secondAsset, setSecondAsset] = React.useState("SOL");
   const [buyOrSell, setBuyOrSell] = React.useState("buy");
+  const [interval, setInterval] = React.useState("1h");
 
   const getAllCoinData = async () => {
     const response = await fetch("https://api.hyperliquid.xyz/info", {
@@ -58,7 +59,12 @@ function App() {
               <div className="flex-1 p-4">
                 <div className="h-full" id="chart">
                   {/* Chart component will go here */}
-                  <Chart />
+                  <Chart
+                    firstAsset={firstAsset}
+                    secondAsset={secondAsset}
+                    interval={interval}
+                    setInterval={setInterval}
+                  />
                 </div>
               </div>
             </div>

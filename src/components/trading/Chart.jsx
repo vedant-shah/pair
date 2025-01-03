@@ -2,38 +2,80 @@ import React, { useEffect, useRef, useState } from "react";
 import { createChart } from "lightweight-charts";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-function Chart() {
+function Chart({ firstAsset, secondAsset, interval, setInterval }) {
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
   const [oldestTimestamp, setOldestTimestamp] = useState(null);
 
   const fetchHistoricalCandles = async (
-    startTime = Date.now() - 20 * 24 * 60 * 60 * 1000,
-    endTime = Date.now()
+    endTime = Date.now(),
+    numCandles = 200
   ) => {
     try {
-      const response = await fetch(`https://api.hyperliquid.xyz/info`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      // Calculate start time based on number of candles and interval
+      const intervalInSeconds = {
+        "5m": 5 * 60 * 1000,
+        "15m": 15 * 60 * 1000,
+        "1h": 60 * 60 * 1000,
+        "4h": 4 * 60 * 60 * 1000,
+        "1d": 24 * 60 * 60 * 1000,
+        "1w": 7 * 24 * 60 * 60 * 1000,
+        "1M": 30 * 24 * 60 * 60 * 1000,
+      };
+
+      const endTimeSeconds = Math.floor(endTime);
+      const startTimeSeconds =
+        endTimeSeconds - numCandles * intervalInSeconds[interval];
+
+      const temp = {
+        req: {
+          coin: firstAsset,
+          endTime: endTimeSeconds,
+          interval: interval,
+          startTime: startTimeSeconds,
         },
-        body: JSON.stringify({
-          req: {
-            coin: "SOL",
-            endTime: endTime,
-            interval: "1h",
-            startTime: startTime,
+        type: "candleSnapshot",
+      };
+
+      let [assetOneCandles, assetTwoCandles] = await Promise.all([
+        fetch(`https://api.hyperliquid.xyz/info`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
           },
-          type: "candleSnapshot",
-        }),
+          body: JSON.stringify(temp),
+        }).then((response) => response.json()),
+        fetch(`https://api.hyperliquid.xyz/info`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            type: "candleSnapshot",
+            req: {
+              coin: secondAsset,
+              endTime: endTimeSeconds,
+              interval: interval,
+              startTime: startTimeSeconds,
+            },
+          }),
+        }).then((response) => response.json()),
+      ]);
+
+      // Process and combine the candle data
+      const combinedCandles = assetOneCandles.map((candle1, index) => {
+        const candle2 = assetTwoCandles[index];
+        return {
+          t: candle1.t,
+          o: Number(candle1.o) / Number(candle2.o),
+          h: Number(candle1.h) / Number(candle2.h),
+          l: Number(candle1.l) / Number(candle2.l),
+          c: Number(candle1.c) / Number(candle2.c),
+          v: Number(candle1.v) + Number(candle2.v),
+        };
       });
 
-      if (!response.ok) {
-        throw new Error("Network response was not ok");
-      }
-
-      const data = await response.json();
-      return data;
+      return combinedCandles;
     } catch (error) {
       console.error("Error fetching historical data:", error);
       throw error;
@@ -46,66 +88,22 @@ function Chart() {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["candles", "initial"],
-    queryFn: () =>
-      fetchHistoricalCandles(Date.now() - 20 * 24 * 60 * 60 * 1000, Date.now()),
+    queryKey: ["candles", "initial", firstAsset, secondAsset, interval],
+    queryFn: () => fetchHistoricalCandles(Date.now(), 200), // Fetch last 200 candles
     refetchInterval: 1000 * 60 * 30, // 30 minutes
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   // Query for older data
-  const fetchOlderData = useQuery({
-    queryKey: ["candles", "older", oldestTimestamp],
-    queryFn: async () => {
-      console.log(oldestTimestamp);
-      if (!oldestTimestamp) return null;
-      const endTime = oldestTimestamp;
-      const startTime = endTime - 20 * 24 * 60 * 60 * 1000;
-      return fetchHistoricalCandles(startTime, endTime);
-    },
-    enabled: !!oldestTimestamp, // Only run when oldestTimestamp is set
-    onSuccess: (newData) => {
-      if (!newData) return;
-
-      // Get the current chart and series
-      const chart = chartRef.current;
-      if (!chart) return;
-
-      const series = chart
-        .series()
-        .find((s) => s.seriesType() === "Candlestick");
-      const volumeSeries = chart
-        .series()
-        .find((s) => s.seriesType() === "Histogram");
-
-      if (!series || !volumeSeries) return;
-
-      // Format the new data
-      const formattedData = newData.map((candle) => ({
-        time: candle.t / 1000,
-        open: Number(candle.o),
-        high: Number(candle.h),
-        low: Number(candle.l),
-        close: Number(candle.c),
-      }));
-
-      const volumeData = newData.map((candle) => ({
-        time: candle.t / 1000,
-        value: Number(candle.v),
-        color: Number(candle.c) > Number(candle.o) ? "#174d4a" : "#833640",
-      }));
-
-      // Update the series with the new data
-      series.setData([...formattedData, ...series.data()]);
-      volumeSeries.setData([...volumeData, ...volumeSeries.data()]);
-
-      // Update the oldest timestamp
-      const newOldestTime = Math.min(...formattedData.map((d) => d.time));
-      setOldestTimestamp(newOldestTime * 1000);
-    },
-  });
 
   const testWebSocket = async (candlestickSeries, volumeSeries) => {
     try {
+      // Variables to store latest candle data for each asset
+      let latestFirstAssetCandle = null;
+      let latestSecondAssetCandle = null;
+
       const ws = new WebSocket("wss://api.hyperliquid.xyz/ws");
 
       ws.onopen = () => {
@@ -113,7 +111,21 @@ function Chart() {
         ws.send(
           JSON.stringify({
             method: "subscribe",
-            subscription: { type: "candle", coin: "SOL", interval: "1h" },
+            subscription: {
+              type: "candle",
+              coin: firstAsset,
+              interval: interval,
+            },
+          })
+        );
+        ws.send(
+          JSON.stringify({
+            method: "subscribe",
+            subscription: {
+              type: "candle",
+              coin: secondAsset,
+              interval: interval,
+            },
           })
         );
       };
@@ -121,17 +133,56 @@ function Chart() {
       ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
         if (data.channel === "candle") {
-          candlestickSeries.update({
-            time: data.data.t / 1000,
-            open: Number(data.data.o),
-            high: Number(data.data.h),
-            low: Number(data.data.l),
-            close: Number(data.data.c),
-          });
-          volumeSeries.update({
-            time: data.data.t / 1000,
-            value: Number(data.data.v),
-          });
+          const candle = data.data;
+
+          // Store the latest candle data for each asset
+          if (candle.coin === firstAsset) {
+            latestFirstAssetCandle = candle;
+          } else if (candle.coin === secondAsset) {
+            latestSecondAssetCandle = candle;
+          }
+
+          // Only update the chart if we have data for both assets
+          if (
+            latestFirstAssetCandle &&
+            latestSecondAssetCandle &&
+            latestFirstAssetCandle.t === latestSecondAssetCandle.t
+          ) {
+            // Process combined candle data
+            const combinedCandle = {
+              time: Math.floor(latestFirstAssetCandle.t / 1000),
+              open:
+                Number(latestFirstAssetCandle.o) /
+                Number(latestSecondAssetCandle.o),
+              high:
+                Number(latestFirstAssetCandle.h) /
+                Number(latestSecondAssetCandle.h),
+              low:
+                Number(latestFirstAssetCandle.l) /
+                Number(latestSecondAssetCandle.l),
+              close:
+                Number(latestFirstAssetCandle.c) /
+                Number(latestSecondAssetCandle.c),
+            };
+
+            const volumeData = {
+              time: Math.floor(latestFirstAssetCandle.t / 1000),
+              value:
+                Number(latestFirstAssetCandle.v) +
+                Number(latestSecondAssetCandle.v),
+              color:
+                combinedCandle.close > combinedCandle.open
+                  ? "#174d4a"
+                  : "#833640",
+            };
+
+            candlestickSeries.update(combinedCandle);
+            volumeSeries.update(volumeData);
+
+            // Reset the latest candles after updating
+            latestFirstAssetCandle = null;
+            latestSecondAssetCandle = null;
+          }
         }
       };
 
@@ -248,13 +299,37 @@ function Chart() {
         chart.remove();
       };
     }
-  }, [historicalCandleData]);
+  }, [historicalCandleData, firstAsset, secondAsset, interval]);
 
-  if (isLoading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error.message}</div>;
+  if (isLoading)
+    return (
+      <div className="h-full flex items-center justify-center w-full flex-col bg-[#041318]">
+        <img src="/logo.svg" alt="logo" className="w-1/6 animate-spin" />
+      </div>
+    );
+  if (error)
+    return (
+      <div className="h-full flex flex-col bg-[#041318]">
+        Error: {error.message}
+      </div>
+    );
 
   return (
-    <div ref={chartContainerRef} style={{ width: "100%", height: "100%" }} />
+    <div className="h-full flex flex-col bg-[#041318]">
+      <div className="inline-flex p-1 bg-gray-900 rounded-lg">
+        {["5m", "15m", "1h", "4h", "1d", "1w", "1M"].map((int) => (
+          <h1
+            key={int}
+            onClick={() => setInterval(int)}
+            className={`${
+              interval === int ? "text-[#50d2c1]" : "text-gray-400"
+            } me-2 cursor-pointer hover:text-[#50d2c1]/80 last:me-0 text-sm`}>
+            {int}
+          </h1>
+        ))}
+      </div>
+      <div ref={chartContainerRef} style={{ width: "100%", height: "100%" }} />
+    </div>
   );
 }
 
