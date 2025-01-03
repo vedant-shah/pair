@@ -8,8 +8,9 @@ import { Toaster } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 
 function App() {
-  const [firstAsset, setFirstAsset] = React.useState("SOL");
-  const [secondAsset, setSecondAsset] = React.useState("BTC");
+  const [firstAsset, setFirstAsset] = React.useState("BTC");
+  const [secondAsset, setSecondAsset] = React.useState("SOL");
+  const [buyOrSell, setBuyOrSell] = React.useState("buy");
 
   const getAllCoinData = async () => {
     const response = await fetch("https://api.hyperliquid.xyz/info", {
@@ -62,10 +63,14 @@ function App() {
               </div>
             </div>
             <div className="col-span-1 bg-[#041318] rounded-lg h-[670px]">
-              <OrderBook />
+              <OrderBook
+                firstAsset={firstAsset}
+                secondAsset={secondAsset}
+                buyOrSell={buyOrSell}
+              />
             </div>
             <div className="col-span-1 bg-[#041318] rounded-lg  h-[670px]">
-              <TradingForm />
+              <TradingForm buyOrSell={buyOrSell} setBuyOrSell={setBuyOrSell} />
             </div>
           </div>
         </main>

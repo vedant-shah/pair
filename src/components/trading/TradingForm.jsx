@@ -11,9 +11,8 @@ import {
 import { Slider } from "../ui/slider";
 import { Checkbox } from "../ui/checkbox";
 
-const TradingForm = () => {
+const TradingForm = ({ buyOrSell, setBuyOrSell }) => {
   const [orderType, setOrderType] = useState("market");
-  const [side, setSide] = useState("buy"); // buy or sell
   const [size, setSize] = useState("");
   const [sizeUnit, setSizeUnit] = useState("BTC");
   const [sliderValue, setSliderValue] = useState(47);
@@ -72,23 +71,23 @@ const TradingForm = () => {
       {/* Buy/Sell Buttons */}
       <div className="flex gap-2 mb-4">
         <Button
-          variant={side === "buy" ? "default" : "outline"}
+          variant={buyOrSell === "buy" ? "default" : "outline"}
           className={`flex-1 ${
-            side === "buy"
+            buyOrSell === "buy"
               ? "bg-[#50d2c1] hover:bg-[#50d2c1]/90 text-black"
               : "text-[#50d2c1] border-[#50d2c1] hover:bg-[#50d2c1]/10"
           }`}
-          onClick={() => setSide("buy")}>
+          onClick={() => setBuyOrSell("buy")}>
           Buy / Long
         </Button>
         <Button
-          variant={side === "sell" ? "default" : "outline"}
+          variant={buyOrSell === "sell" ? "default" : "outline"}
           className={`flex-1 ${
-            side === "sell"
+            buyOrSell === "sell"
               ? "bg-[#ED7088] hover:bg-[#ED7088]/90 text-black"
               : "text-[#ED7088] border-[#ED7088] hover:bg-[#ED7088]/10"
           }`}
-          onClick={() => setSide("sell")}>
+          onClick={() => setBuyOrSell("sell")}>
           Sell / Short
         </Button>
       </div>
@@ -106,7 +105,7 @@ const TradingForm = () => {
       {/* Size Input */}
       <div className="relative mb-4">
         <div className="flex">
-          <div className="mt-2 w-full">
+          <div className="w-full mt-2">
             <div className="flex items-center rounded-md bg-[#041318] pl-3 outline outline-1 -outline-offset-1 outline-gray-300 has-[input:focus-within]:outline has-[input:focus-within]:outline-2 has-[input:focus-within]:-outline-offset-2 has-[input:focus-within]:outline-indigo-600">
               <input
                 type="text"
@@ -115,7 +114,7 @@ const TradingForm = () => {
                 className="block min-w-0 grow py-1.5 pl-1 pr-3 bg-[#041318] text-base text-gray-900 placeholder:text-gray-400 focus:outline focus:outline-0 sm:text-sm/6"
                 placeholder="0.00"
               />
-              <div className="grid shrink-0 grid-cols-1 focus-within:relative">
+              <div className="grid grid-cols-1 shrink-0 focus-within:relative">
                 <select
                   id="currency"
                   name="currency"
@@ -125,7 +124,7 @@ const TradingForm = () => {
                   <option>USD</option>
                 </select>
                 <svg
-                  className="pointer-events-none col-start-1 row-start-1 mr-2 size-5 self-center justify-self-end text-gray-500 sm:size-4"
+                  className="self-center col-start-1 row-start-1 mr-2 text-gray-500 pointer-events-none size-5 justify-self-end sm:size-4"
                   viewBox="0 0 16 16"
                   fill="currentColor"
                   aria-hidden="true"

@@ -6,7 +6,6 @@ function Chart() {
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
   const [oldestTimestamp, setOldestTimestamp] = useState(null);
-  const queryClient = useQueryClient();
 
   const fetchHistoricalCandles = async (
     startTime = Date.now() - 20 * 24 * 60 * 60 * 1000,

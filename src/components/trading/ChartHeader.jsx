@@ -23,20 +23,32 @@ const ChartHeader = ({
 }) => {
   const [openFirst, setOpenFirst] = React.useState(false);
   const [openSecond, setOpenSecond] = React.useState(false);
-
+  let assetOneValues = {
+    funding: 0.0,
+    prevDayPx: 1,
+    premium: 0.0,
+    dayNtlVlm: 0.0,
+    oraclePx: 0.0,
+    markPx: 1,
+    midPx: 0.0,
+  };
+  let assetTwoValues = {
+    funding: 0.0,
+    prevDayPx: 1,
+    premium: 0.0,
+    dayNtlVlm: 0.0,
+    oraclePx: 0.0,
+    markPx: 1,
+    midPx: 0.0,
+  };
   const [marketData, setMarketData] = useState({
     coin: "SOL",
     ctx: {
       funding: 0.0,
-      openInterest: 0.0,
       prevDayPx: 0.0,
-      dayNtlVlm: 0.0,
-      premium: 0.0,
       oraclePx: 0.0,
       markPx: 0.0,
-      midPx: 0.0,
-      impactPxs: [0.0, 0.0],
-      dayBaseVlm: 0.0,
+      dayNtlVlm: 0.0,
     },
   });
 
@@ -53,20 +65,50 @@ const ChartHeader = ({
       ws.send(
         JSON.stringify({
           method: "subscribe",
-          subscription: { type: "activeAssetCtx", coin: "SOL" },
+          subscription: { type: "activeAssetCtx", coin: firstAsset },
+        })
+      );
+      ws.send(
+        JSON.stringify({
+          method: "subscribe",
+          subscription: { type: "activeAssetCtx", coin: secondAsset },
         })
       );
     };
 
     ws.onmessage = (event) => {
       const message = JSON.parse(event.data);
+
       if (message.channel === "activeAssetCtx") {
+        if (message.data.coin === firstAsset) {
+          assetOneValues = message.data.ctx;
+        }
+        if (message.data.coin === secondAsset) {
+          assetTwoValues = message.data.ctx;
+        }
+        console.log(
+          "assetTwoValues:",
+          assetOneValues.dayNtlVlm + assetTwoValues.dayNtlVlm
+        );
+
+        let pairAssetValues = {
+          markPx: (assetOneValues.markPx / assetTwoValues.markPx).toFixed(2),
+          prevDayPx: (
+            assetOneValues.prevDayPx / assetTwoValues.prevDayPx
+          ).toFixed(2),
+          oraclePx: assetOneValues.oraclePx,
+          funding: (assetOneValues.funding - assetTwoValues.funding).toFixed(2),
+          dayNtlVlm: (
+            Number(assetOneValues.dayNtlVlm) + Number(assetTwoValues.dayNtlVlm)
+          ).toFixed(2),
+        };
+
         setMarketData((prev) => {
           // Determine flash states
           const newFlashStates = {
-            mark: message.data.ctx.markPx >= prev.ctx.markPx ? "up" : "down",
+            mark: pairAssetValues.markPx >= prev.ctx.markPx ? "up" : "down",
             change24h:
-              message.data.ctx.markPx > message.data.ctx.prevDayPx
+              pairAssetValues.markPx > pairAssetValues.prevDayPx
                 ? "up"
                 : "down",
           };
@@ -79,13 +121,19 @@ const ChartHeader = ({
               change24h: null,
             });
           }, 1000);
-          return message.data;
+          return {
+            coin: message.data.coin,
+            ctx: {
+              ...pairAssetValues,
+              oraclePx: message.data.ctx.oraclePx,
+            },
+          };
         });
       }
     };
 
     return () => ws.close();
-  }, []);
+  }, [firstAsset, secondAsset]);
 
   return (
     <div className="flex items-center gap-6 px-4 py-2 bg-[#041318] border-b border-gray-800">
@@ -134,15 +182,6 @@ const ChartHeader = ({
                         );
                         setOpenFirst(false);
                       }}>
-                      <img
-                        src={`https://app.hyperliquid.xyz/coins/${coin}.svg`}
-                        alt={coin}
-                        onError={(e) => {
-                          e.target.src =
-                            "https://app.hyperliquid.xyz/coins/missing.svg";
-                        }}
-                        className="w-4 h-4 mr-2"
-                      />
                       {coin}
                     </CommandItem>
                   ))}
@@ -195,15 +234,6 @@ const ChartHeader = ({
                         );
                         setOpenSecond(false);
                       }}>
-                      <img
-                        src={`https://app.hyperliquid.xyz/coins/${coin}.svg`}
-                        alt={coin}
-                        onError={(e) => {
-                          e.target.src =
-                            "https://app.hyperliquid.xyz/coins/missing.svg";
-                        }}
-                        className="w-4 h-4 mr-2"
-                      />
                       {coin}
                     </CommandItem>
                   ))}
@@ -283,23 +313,6 @@ const ChartHeader = ({
           <span className="font-mono text-[13px] text-white min-w-[100px]">
             $
             {Number(marketData.ctx.dayNtlVlm).toLocaleString("en-US", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
-          </span>
-        </div>
-
-        {/* Open Interest */}
-        <div className="flex flex-col">
-          <span className="text-[12px] text-gray-400 underline decoration-gray-400 underline-offset-4">
-            Open Interest
-          </span>
-          <span className="font-mono text-[13px] text-white min-w-[100px]">
-            $
-            {(
-              Number(marketData.ctx.openInterest) *
-              Number(marketData.ctx.oraclePx)
-            ).toLocaleString("en-US", {
               minimumFractionDigits: 2,
               maximumFractionDigits: 2,
             })}
