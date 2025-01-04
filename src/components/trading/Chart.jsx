@@ -61,10 +61,16 @@ function Chart({ firstAsset, secondAsset, interval, setInterval }) {
           }),
         }).then((response) => response.json()),
       ]);
-
+      //   console.log(assetOneCandles, assetTwoCandles);
       // Process and combine the candle data
-      const combinedCandles = assetOneCandles.map((candle1, index) => {
-        const candle2 = assetTwoCandles[index];
+      const smallerArray =
+        assetOneCandles.length <= assetTwoCandles.length
+          ? assetOneCandles
+          : assetTwoCandles;
+
+      const combinedCandles = smallerArray.map((smallerCandle, index) => {
+        const candle1 = assetOneCandles.find((c) => c.t === smallerCandle.t);
+        const candle2 = assetTwoCandles.find((c) => c.t === smallerCandle.t);
         return {
           t: candle1.t,
           o: Number(candle1.o) / Number(candle2.o),
@@ -78,7 +84,6 @@ function Chart({ firstAsset, secondAsset, interval, setInterval }) {
       return combinedCandles;
     } catch (error) {
       console.error("Error fetching historical data:", error);
-      throw error;
     }
   };
 

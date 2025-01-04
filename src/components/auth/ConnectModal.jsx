@@ -15,7 +15,7 @@ const ConnectModal = () => {
   const { ready, authenticated, login, user, logout } = usePrivy();
   const disableLogin = !ready || (ready && authenticated);
 
-  ready && authenticated && console.log(user);
+  //   ready && authenticated && console.log(user);
 
   return (
     <>

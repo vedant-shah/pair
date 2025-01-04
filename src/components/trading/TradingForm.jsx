@@ -10,6 +10,7 @@ import {
 } from "../ui/select";
 import { Slider } from "../ui/slider";
 import { Checkbox } from "../ui/checkbox";
+import LeverageModal from "./LeverageModal";
 
 const TradingForm = ({ buyOrSell, setBuyOrSell }) => {
   const [orderType, setOrderType] = useState("market");
@@ -18,6 +19,8 @@ const TradingForm = ({ buyOrSell, setBuyOrSell }) => {
   const [sliderValue, setSliderValue] = useState(47);
   const [reduceOnly, setReduceOnly] = useState(false);
   const [tpsl, setTpsl] = useState(false);
+  const [leverage, setLeverage] = useState(20);
+  const [isLeverageModalOpen, setIsLeverageModalOpen] = useState(false);
 
   return (
     <div className="flex flex-col h-full bg-[#041318] p-2">
@@ -30,8 +33,9 @@ const TradingForm = ({ buyOrSell, setBuyOrSell }) => {
         </Button>
         <Button
           variant="outline"
+          onClick={() => setIsLeverageModalOpen(true)}
           className="flex-1 bg-[#293233] hover:bg-[#2f393a] text-white border-0">
-          20x
+          {leverage}x
         </Button>
       </div>
 
@@ -47,23 +51,6 @@ const TradingForm = ({ buyOrSell, setBuyOrSell }) => {
             value="limit"
             className="flex-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-[#50d2c1] data-[state=active]:border-b-2 data-[state=active]:border-[#50d2c1] rounded-none">
             Limit
-          </TabsTrigger>
-          <TabsTrigger
-            value="pro"
-            className="flex-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-[#50d2c1] data-[state=active]:border-b-2 data-[state=active]:border-[#50d2c1] rounded-none">
-            Pro
-            <svg
-              className="w-4 h-4 ml-1"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 9l-7 7-7-7"
-              />
-            </svg>
           </TabsTrigger>
         </TabsList>
       </Tabs>
@@ -190,6 +177,13 @@ const TradingForm = ({ buyOrSell, setBuyOrSell }) => {
           <span className="text-white">0.0350% / 0.0100%</span>
         </div>
       </div>
+
+      <LeverageModal
+        open={isLeverageModalOpen}
+        onOpenChange={setIsLeverageModalOpen}
+        leverage={leverage}
+        setLeverage={setLeverage}
+      />
     </div>
   );
 };
