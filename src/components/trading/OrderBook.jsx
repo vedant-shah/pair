@@ -66,9 +66,27 @@ const OrderBook = ({ firstAsset, secondAsset, buyOrSell }) => {
     };
   }, [firstAsset, secondAsset, processOrderBookData]); // Remove buyOrSell from here
 
+  function formatPrice(price, precision) {
+    // Use toPrecision to get the string representation with the desired precision
+    const preciseValue = Number(price).toPrecision(precision);
+
+    // Split into integer and fractional parts for custom formatting
+    const [integerPart, fractionalPart] = preciseValue.split(".");
+
+    // Use toLocaleString for the integer part and reattach the fractional part manually
+    const formattedIntegerPart = Number(integerPart).toLocaleString();
+
+    if (fractionalPart) {
+      // Reattach the fractional part without altering it
+      return `${formattedIntegerPart}.${fractionalPart}`;
+    }
+
+    return formattedIntegerPart; // No fractional part, return just the integer part
+  }
+
   const OrderRow = ({ price, size, side, total, maxTotal }) => {
     return (
-      <div className="grid grid-cols-3 h-[23px] text-sm items-center relative my-[3px]">
+      <div className="grid grid-cols-3 h-[23px] text-xs items-center relative my-[3px]">
         <div
           className={`absolute top-0 left-0 h-full ${
             side === "bid" ? "bg-[#50d2c1]" : "bg-[#ED7088]"
@@ -76,15 +94,15 @@ const OrderBook = ({ firstAsset, secondAsset, buyOrSell }) => {
           style={{ width: `${(total * 100) / maxTotal}%`, opacity: 0.15 }}
         />
         <span
-          className={`font-mono pl-2 relative ${
+          className={` pl-2 relative text-sm max-w-[max-content] ${
             side === "bid" ? "text-[#50d2c1]" : "text-[#ED7088]"
           }`}>
-          {Number(Number(price).toPrecision(5)).toLocaleString()}
+          {formatPrice(price, 5)}
         </span>
-        <span className="relative font-mono text-right text-white">
+        <span className="relative text-sm text-right text-white">
           {Math.round(Number(size)).toLocaleString()}
         </span>
-        <span className="relative pr-2 font-mono text-right text-gray-400">
+        <span className="relative pr-2 text-sm text-right text-gray-400">
           {Math.round(Number(total)).toLocaleString()}
         </span>
       </div>
@@ -110,9 +128,9 @@ const OrderBook = ({ firstAsset, secondAsset, buyOrSell }) => {
         </div>
         {/* Headers */}
         <div className="grid grid-cols-3 px-2 py-1 text-xs text-gray-400 border-b border-gray-800">
-          <span className="pl-2">Price</span>
+          <span className="">Price</span>
           <span className="text-right">Size (USD) </span>
-          <span className="pr-2 text-right">Total (USD)</span>
+          <span className="text-right ">Total (USD)</span>
         </div>
         {/* Asks */}
         <div className="flex-1 overflow-hidden">

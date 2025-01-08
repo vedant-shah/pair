@@ -54,6 +54,13 @@ const TradingForm = ({
     }
   }, [authenticated]);
 
+  useEffect(() => {
+    setLeverage({
+      firstAsset: 1,
+      secondAsset: 1,
+    });
+  }, [firstAsset, secondAsset]);
+
   return (
     <div className="flex flex-col h-full bg-[#041318] p-2">
       {/* Cross and 20x buttons */}
