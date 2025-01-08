@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Navbar from "./components/layout/Navbar";
 import OrderBook from "./components/trading/OrderBook";
 import TradingForm from "./components/trading/TradingForm";
@@ -6,6 +6,12 @@ import ChartHeader from "./components/trading/ChartHeader";
 import Chart from "./components/trading/Chart";
 import { Toaster } from "sonner";
 import { useQuery } from "@tanstack/react-query";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  "https://boxsecwejarnjitfehyv.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJveHNlY3dlamFybmppdGZlaHl2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzYyNTgwODYsImV4cCI6MjA1MTgzNDA4Nn0.g0LkMMxbj2AKuwBcU4AYVcvuGUZlEuD8zcHCxgwheNY"
+);
 
 function App() {
   const [firstAsset, setFirstAsset] = React.useState("BTC");
@@ -28,6 +34,19 @@ function App() {
     return temp;
   };
 
+  const getMeta = async () => {
+    const response = await fetch("https://api.hyperliquid.xyz/info", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        type: "meta",
+      }),
+    });
+    return response.json();
+  };
+
   const {
     data: allCoins,
     isLoading,
@@ -36,6 +55,19 @@ function App() {
     queryKey: ["coinData"],
     queryFn: getAllCoinData,
     refetchInterval: 1000 * 60 * 30, // 30 minutes
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
+  });
+
+  const {
+    data: meta,
+    isLoading: metaLoading,
+    error: metaError,
+  } = useQuery({
+    queryKey: ["meta"],
+    queryFn: getMeta,
+    refetchInterval: 1000 * 60 * 60 * 24, // 24 hours
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
@@ -76,7 +108,13 @@ function App() {
               />
             </div>
             <div className="col-span-1 bg-[#041318] rounded-lg  h-[670px]">
-              <TradingForm buyOrSell={buyOrSell} setBuyOrSell={setBuyOrSell} />
+              <TradingForm
+                buyOrSell={buyOrSell}
+                setBuyOrSell={setBuyOrSell}
+                firstAsset={firstAsset}
+                secondAsset={secondAsset}
+                meta={meta}
+              />
             </div>
           </div>
         </main>

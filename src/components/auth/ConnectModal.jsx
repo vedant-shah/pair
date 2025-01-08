@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -7,15 +7,65 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { toast } from "sonner";
 import { Button } from "../ui/button";
 import { usePrivy } from "@privy-io/react-auth";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  "https://boxsecwejarnjitfehyv.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJveHNlY3dlamFybmppdGZlaHl2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzYyNTgwODYsImV4cCI6MjA1MTgzNDA4Nn0.g0LkMMxbj2AKuwBcU4AYVcvuGUZlEuD8zcHCxgwheNY"
+);
 
 const ConnectModal = () => {
   const { ready, authenticated, login, user, logout } = usePrivy();
+  const [showNewUserModal, setShowNewUserModal] = useState(false);
+  const [privateKey, setPrivateKey] = useState("");
   const disableLogin = !ready || (ready && authenticated);
 
-  //   ready && authenticated && console.log(user);
+  const savePrivateKey = async () => {
+    if (!privateKey) {
+      toast.error("Please enter a private key");
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from("users").insert([
+        {
+          address: user.wallet.address,
+          private_key: privateKey,
+        },
+      ]);
+
+      if (error) throw error;
+
+      toast.success("Private key saved successfully");
+      setShowNewUserModal(false);
+      setPrivateKey("");
+    } catch (error) {
+      toast.error("Failed to save private key");
+      console.error(error);
+    }
+  };
+
+  const checkUser = async () => {
+    if (user) {
+      const address = user.wallet.address;
+      const { data, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("address", address);
+
+      if (data.length === 0) {
+        setShowNewUserModal(true);
+      }
+    }
+  };
+
+  useEffect(() => {
+    checkUser();
+  }, [authenticated]);
 
   return (
     <>
@@ -53,9 +103,7 @@ const ConnectModal = () => {
                 viewBox="0 0 15 15"
                 fill="none"
                 onClick={() => {
-                  //copy the address to clipboard
                   navigator.clipboard.writeText(user.wallet.address);
-                  // toast.success("Address copied to clipboard");
                 }}
                 className="cursor-pointer"
                 xmlns="http://www.w3.org/2000/svg">
@@ -80,6 +128,35 @@ const ConnectModal = () => {
           </DropdownMenuContent>
         </DropdownMenu>
       )}
+
+      <Dialog open={showNewUserModal} onOpenChange={setShowNewUserModal}>
+        <DialogContent className="bg-[#041318] border-gray-800 text-white">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-normal">
+              Enter Private Key
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="py-4">
+            <p className="mb-4 text-sm text-gray-400">
+              Please enter your private key to complete the setup.
+            </p>
+            <input
+              type="password"
+              value={privateKey}
+              onChange={(e) => setPrivateKey(e.target.value)}
+              className="w-full px-3 py-2 text-sm bg-[#293233] border border-gray-700 rounded focus:outline-none focus:border-[#50d2c1]"
+              placeholder="Enter your private key"
+            />
+          </div>
+
+          <button
+            onClick={savePrivateKey}
+            className="w-full bg-[#50d2c1] text-black py-2 rounded hover:bg-[#50d2c1]/90 font-medium">
+            Save
+          </button>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

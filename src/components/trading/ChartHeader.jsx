@@ -95,9 +95,10 @@ const ChartHeader = ({
       const pairAssetValues = {
         markPx: (assetOneValues.markPx / assetTwoValues.markPx).toFixed(2),
         prevDayPx: (
-          assetOneValues.prevDayPx / assetTwoValues.prevDayPx
+          Number(assetOneValues.prevDayPx) / Number(assetTwoValues.prevDayPx)
         ).toFixed(2),
-        funding: (assetOneValues.funding - assetTwoValues.funding).toFixed(2),
+        funding:
+          Number(assetOneValues.funding) - Number(assetTwoValues.funding),
         dayNtlVlm: (
           Number(assetOneValues.dayNtlVlm) + Number(assetTwoValues.dayNtlVlm)
         ).toFixed(2),
@@ -132,7 +133,7 @@ const ChartHeader = ({
   }, [firstAsset, secondAsset]);
 
   return (
-    <div className="flex items-center justify-evenly px-4 py-2 bg-[#041318] border-b border-gray-800">
+    <div className="flex items-center gap-6 px-4 py-2 bg-[#041318] border-b border-gray-800">
       {/* Coin Pair Selector */}
       <div className="flex items-center gap-2">
         <Popover open={openFirst} onOpenChange={setOpenFirst}>
@@ -247,7 +248,7 @@ const ChartHeader = ({
           Mark
         </span>
         <span
-          className={`font-mono text-[13px] min-w-[80px] ${
+          className={`font-mono text-[13px]  ${
             flashStates.mark === "up"
               ? "flash-green"
               : flashStates.mark === "down"
@@ -263,7 +264,7 @@ const ChartHeader = ({
         <span className="text-[12px] text-gray-400 underline decoration-gray-400 underline-offset-4">
           Oracle
         </span>
-        <span className="font-mono text-[13px] text-white min-w-[80px]">
+        <span className="font-mono text-[13px] text-white ">
           {Number(marketData.ctx.oraclePx).toFixed(2)}
         </span>
       </div>
@@ -313,30 +314,26 @@ const ChartHeader = ({
           })}
         </span>
       </div>
-
       {/* Funding */}
-      {/* <div className="flex flex-col">
-          <span className="text-[12px] text-gray-400 underline decoration-gray-400 underline-offset-4">
-            Funding
+      <div className="flex flex-col">
+        <span className="text-[12px] text-gray-400 underline decoration-gray-400 underline-offset-4">
+          Funding
+        </span>
+        <div className="flex items-center gap-1">
+          <span
+            className={`font-mono text-[13px] min-w-[60px] ${
+              flashStates.funding === "up"
+                ? "flash-green"
+                : flashStates.funding === "down"
+                ? "flash-red"
+                : marketData.funding >= 0
+                ? "text-[#50d2c1]"
+                : "text-[#ED7088]"
+            }`}>
+            {(marketData.ctx.funding * 100).toFixed(4)}%
           </span>
-          <div className="flex items-center gap-1">
-            <span
-              className={`font-mono text-[13px] min-w-[60px] ${
-                flashStates.funding === "up"
-                  ? "flash-green"
-                  : flashStates.funding === "down"
-                  ? "flash-red"
-                  : marketData.funding >= 0
-                  ? "text-[#50d2c1]"
-                  : "text-[#ED7088]"
-              }`}>
-              {(marketData.funding * 100).toFixed(4)}%
-            </span>
-            <span className="font-mono text-[13px] text-gray-400 min-w-[70px]">
-              {marketData.countdown}
-            </span>
-          </div>
-        </div> */}
+        </div>
+      </div>
     </div>
   );
 };

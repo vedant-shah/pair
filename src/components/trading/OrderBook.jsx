@@ -103,8 +103,10 @@ const OrderBook = ({ firstAsset, secondAsset, buyOrSell }) => {
 
       <div className="flex flex-col ">
         <div className="bg-[#293233] px-2 py-1 text-sm flex justify-between text-gray-400">
-          <span>BUY</span>
-          <span>{buyOrSell === "buy" ? firstAsset : secondAsset}</span>
+          <span className="text-[#50d2c1]">
+            {buyOrSell === "buy" ? firstAsset : secondAsset}
+          </span>
+          <span className="">BUY</span>
         </div>
         {/* Headers */}
         <div className="grid grid-cols-3 px-2 py-1 text-xs text-gray-400 border-b border-gray-800">
@@ -128,8 +130,10 @@ const OrderBook = ({ firstAsset, secondAsset, buyOrSell }) => {
 
         {/* Spread */}
         <div className="bg-[#293233] px-2 py-1 text-sm flex justify-between text-gray-400">
-          <span>SELL</span>
-          <span>{buyOrSell === "buy" ? secondAsset : firstAsset}</span>
+          <span className="text-[#ED7088]">
+            {buyOrSell === "buy" ? secondAsset : firstAsset}
+          </span>
+          <span className="">SELL</span>
         </div>
 
         {/* Bids */}

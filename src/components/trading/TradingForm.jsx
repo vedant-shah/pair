@@ -1,26 +1,58 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "../ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/tabs";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "../ui/select";
 import { Slider } from "../ui/slider";
 import { Checkbox } from "../ui/checkbox";
 import LeverageModal from "./LeverageModal";
+import { usePrivy } from "@privy-io/react-auth";
+import { ethers } from "ethers";
 
-const TradingForm = ({ buyOrSell, setBuyOrSell }) => {
+const TradingForm = ({
+  buyOrSell,
+  setBuyOrSell,
+  firstAsset,
+  secondAsset,
+  meta,
+}) => {
   const [orderType, setOrderType] = useState("market");
+
+  const [webData2, setWebData2] = useState(null);
   const [size, setSize] = useState("");
   const [sizeUnit, setSizeUnit] = useState("BTC");
   const [sliderValue, setSliderValue] = useState(47);
   const [reduceOnly, setReduceOnly] = useState(false);
   const [tpsl, setTpsl] = useState(false);
-  const [leverage, setLeverage] = useState(20);
+  const [leverage, setLeverage] = useState({
+    firstAsset: 1,
+    secondAsset: 1,
+  });
   const [isLeverageModalOpen, setIsLeverageModalOpen] = useState(false);
+
+  const { ready, authenticated, user, signTypedData } = usePrivy();
+
+  useEffect(() => {
+    if (ready && authenticated) {
+      const ws = new WebSocket("wss://api.hyperliquid.xyz/ws");
+
+      ws.onopen = () => {
+        ws.send(
+          JSON.stringify({
+            method: "subscribe",
+            subscription: { type: "webData2", user: user.wallet.address },
+          })
+        );
+      };
+
+      ws.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+        setWebData2(message.data);
+      };
+
+      return () => {
+        ws.close();
+      };
+    }
+  }, [authenticated]);
 
   return (
     <div className="flex flex-col h-full bg-[#041318] p-2">
@@ -35,7 +67,7 @@ const TradingForm = ({ buyOrSell, setBuyOrSell }) => {
           variant="outline"
           onClick={() => setIsLeverageModalOpen(true)}
           className="flex-1 bg-[#293233] hover:bg-[#2f393a] text-white border-0">
-          {leverage}x
+          {leverage.firstAsset}x / {leverage.secondAsset}x
         </Button>
       </div>
 
@@ -153,7 +185,6 @@ const TradingForm = ({ buyOrSell, setBuyOrSell }) => {
         </label>
       </div>
 
-      {/* Order Info */}
       <div className="mt-auto">
         <hr className="my-2 border-gray-800" />
         <div className="flex justify-between mb-2 text-sm">
@@ -183,6 +214,9 @@ const TradingForm = ({ buyOrSell, setBuyOrSell }) => {
         onOpenChange={setIsLeverageModalOpen}
         leverage={leverage}
         setLeverage={setLeverage}
+        meta={meta}
+        firstAsset={firstAsset}
+        secondAsset={secondAsset}
       />
     </div>
   );
