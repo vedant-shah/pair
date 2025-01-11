@@ -86,7 +86,7 @@ const OrderBook = ({ firstAsset, secondAsset, buyOrSell }) => {
 
   const OrderRow = ({ price, size, side, total, maxTotal }) => {
     return (
-      <div className="grid grid-cols-3 h-[23px] text-xs items-center relative my-[3px]">
+      <div className="grid grid-cols-3 h-[23px] text-xs items-center relative my-[4px]">
         <div
           className={`absolute top-0 left-0 h-full ${
             side === "bid" ? "bg-[#50d2c1]" : "bg-[#ED7088]"
@@ -94,15 +94,15 @@ const OrderBook = ({ firstAsset, secondAsset, buyOrSell }) => {
           style={{ width: `${(total * 100) / maxTotal}%`, opacity: 0.15 }}
         />
         <span
-          className={` pl-2 relative text-sm max-w-[max-content] ${
+          className={` pl-2 relative text-xs max-w-[max-content] ${
             side === "bid" ? "text-[#50d2c1]" : "text-[#ED7088]"
           }`}>
           {formatPrice(price, 5)}
         </span>
-        <span className="relative text-sm text-right text-white">
+        <span className="relative text-xs text-right text-white">
           {Math.round(Number(size)).toLocaleString()}
         </span>
-        <span className="relative pr-2 text-sm text-right text-gray-400">
+        <span className="relative pr-2 text-xs text-right text-gray-400">
           {Math.round(Number(total)).toLocaleString()}
         </span>
       </div>
@@ -114,13 +114,13 @@ const OrderBook = ({ firstAsset, secondAsset, buyOrSell }) => {
       {/* Tabs */}
       <div className="flex border-b border-gray-800">
         <button
-          className={`flex-1 px-4 py-2 text-sm font-medium ${"text-white border-b-2 border-[#50d2c1]"}`}>
+          className={`flex-1 px-4 py-2 text-xs font-medium ${"text-white border-b-2 border-[#50d2c1]"}`}>
           Order Book
         </button>
       </div>
 
       <div className="flex flex-col ">
-        <div className="bg-[#293233] px-2 py-1 text-sm flex justify-between text-gray-400">
+        <div className="bg-[#293233] px-2 py-1 text-xs flex justify-between text-gray-400">
           <span className="text-[#50d2c1]">
             {buyOrSell === "buy" ? firstAsset : secondAsset}
           </span>
@@ -147,7 +147,7 @@ const OrderBook = ({ firstAsset, secondAsset, buyOrSell }) => {
         </div>
 
         {/* Spread */}
-        <div className="bg-[#293233] px-2 py-1 text-sm flex justify-between text-gray-400">
+        <div className="bg-[#293233] px-2 py-1 text-xs flex justify-between text-gray-400">
           <span className="text-[#ED7088]">
             {buyOrSell === "buy" ? secondAsset : firstAsset}
           </span>

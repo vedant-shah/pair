@@ -15,55 +15,6 @@ const Navbar = () => {
             </a>
           </div>
 
-          {/* Navigation Links */}
-          <div className="flex items-center gap-8">
-            <a href="/trade" className="text-[#50d2c1] text-sm font-medium">
-              Trade
-            </a>
-            <a
-              href="/vaults"
-              className="text-sm text-gray-400 hover:text-white">
-              Vaults
-            </a>
-            <a
-              href="/portfolio"
-              className="text-sm text-gray-400 hover:text-white">
-              Portfolio
-            </a>
-            <a
-              href="/referrals"
-              className="text-sm text-gray-400 hover:text-white">
-              Referrals
-            </a>
-            <a
-              href="/points"
-              className="text-sm text-gray-400 hover:text-white">
-              Points
-            </a>
-            <a
-              href="/leaderboard"
-              className="text-sm text-gray-400 hover:text-white">
-              Leaderboard
-            </a>
-            <div className="relative group">
-              <button className="flex items-center gap-1 text-sm text-gray-400 hover:text-white">
-                More
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-              </button>
-            </div>
-          </div>
-
           {/* Right Section */}
           <div className="flex items-center gap-4">
             <ConnectModal />

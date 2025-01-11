@@ -142,7 +142,7 @@ const ChartHeader = ({
               variant="outline"
               role="combobox"
               aria-expanded={openFirst}
-              className="w-[80px] justify-between">
+              className="w-[80px] justify-between border-[#041318]">
               {firstAsset ? (
                 <div className="flex items-center justify-center gap-1">
                   <img
@@ -194,7 +194,7 @@ const ChartHeader = ({
               variant="outline"
               role="combobox"
               aria-expanded={openSecond}
-              className="w-[80px] justify-between">
+              className="w-[80px] justify-between border-[#041318]">
               {secondAsset ? (
                 <div className="flex items-center justify-center gap-1">
                   <img
@@ -241,97 +241,99 @@ const ChartHeader = ({
         </Popover>
       </div>
       {/* Stats */}
-
-      {/* Mark Price */}
-      <div className="flex flex-col">
-        <span className="text-[12px] text-gray-400 underline decoration-gray-400 underline-offset-1">
-          Mark
-        </span>
-        <span
-          className={`font-mono text-[13px]  ${
-            flashStates.mark === "up"
-              ? "flash-green"
-              : flashStates.mark === "down"
-              ? "flash-red"
-              : "text-white"
-          }`}>
-          {Number(marketData.ctx.markPx).toFixed(2)}
-        </span>
-      </div>
-
-      {/* Oracle Price */}
-      <div className="flex flex-col">
-        <span className="text-[12px] text-gray-400 underline decoration-gray-400 underline-offset-4">
-          Oracle
-        </span>
-        <span className="font-mono text-[13px] text-white ">
-          {Number(marketData.ctx.oraclePx).toFixed(2)}
-        </span>
-      </div>
-
-      {/* 24h Change */}
-      <div className="flex flex-col">
-        <span className="text-[12px] text-gray-400 underline decoration-gray-400 underline-offset-4">
-          24h Change
-        </span>
-        <div className="flex items-center gap-1 min-w-[100px]">
+      <div className="flex items-center gap-6 overflow-x-auto no-scrollbar">
+        {/* Mark Price */}
+        <div className="flex flex-col">
+          <span className="text-[12px] text-gray-400 underline decoration-gray-400 underline-offset-1">
+            Mark
+          </span>
           <span
-            className={`font-mono text-[13px] ${
-              marketData.ctx.markPx >= marketData.ctx.prevDayPx
-                ? "text-[#50d2c1]"
-                : "text-[#ED7088]"
+            className={`font-mono text-[13px]  ${
+              flashStates.mark === "up"
+                ? "flash-green"
+                : flashStates.mark === "down"
+                ? "flash-red"
+                : "text-white"
             }`}>
-            {(Number(marketData.ctx.markPx) -
-              Number(marketData.ctx.prevDayPx) >=
-            0
-              ? "+"
-              : "") +
-              (
-                Number(marketData.ctx.markPx) - Number(marketData.ctx.prevDayPx)
-              ).toFixed(2) +
-              " / " +
-              (
-                ((Number(marketData.ctx.markPx) -
-                  Number(marketData.ctx.prevDayPx)) *
-                  100) /
-                Number(marketData.ctx.prevDayPx)
-              ).toFixed(2) +
-              "%"}
+            {Number(marketData.ctx.markPx).toFixed(2)}
           </span>
         </div>
-      </div>
 
-      {/* 24h Volume */}
-      <div className="flex flex-col">
-        <span className="text-[12px] text-gray-400 underline decoration-gray-400 underline-offset-4">
-          24h Volume
-        </span>
-        <span className="font-mono text-[13px] text-white min-w-[100px]">
-          $
-          {Number(marketData.ctx.dayNtlVlm).toLocaleString("en-US", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}
-        </span>
-      </div>
-      {/* Funding */}
-      <div className="flex flex-col">
-        <span className="text-[12px] text-gray-400 underline decoration-gray-400 underline-offset-4">
-          Funding
-        </span>
-        <div className="flex items-center gap-1">
-          <span
-            className={`font-mono text-[13px] min-w-[60px] ${
-              flashStates.funding === "up"
-                ? "flash-green"
-                : flashStates.funding === "down"
-                ? "flash-red"
-                : marketData.funding >= 0
-                ? "text-[#50d2c1]"
-                : "text-[#ED7088]"
-            }`}>
-            {(marketData.ctx.funding * 100).toFixed(4)}%
+        {/* Oracle Price */}
+        <div className="flex flex-col">
+          <span className="text-[12px] text-gray-400 underline decoration-gray-400 underline-offset-4">
+            Oracle
           </span>
+          <span className="font-mono text-[13px] text-white ">
+            {Number(marketData.ctx.oraclePx).toFixed(2)}
+          </span>
+        </div>
+
+        {/* 24h Change */}
+        <div className="flex flex-col">
+          <span className="text-[12px] text-gray-400 underline decoration-gray-400 underline-offset-4">
+            24h Change
+          </span>
+          <div className="flex items-center gap-1 min-w-[100px]">
+            <span
+              className={`font-mono text-[13px] ${
+                marketData.ctx.markPx >= marketData.ctx.prevDayPx
+                  ? "text-[#50d2c1]"
+                  : "text-[#ED7088]"
+              }`}>
+              {(Number(marketData.ctx.markPx) -
+                Number(marketData.ctx.prevDayPx) >=
+              0
+                ? "+"
+                : "") +
+                (
+                  Number(marketData.ctx.markPx) -
+                  Number(marketData.ctx.prevDayPx)
+                ).toFixed(2) +
+                " / " +
+                (
+                  ((Number(marketData.ctx.markPx) -
+                    Number(marketData.ctx.prevDayPx)) *
+                    100) /
+                  Number(marketData.ctx.prevDayPx)
+                ).toFixed(2) +
+                "%"}
+            </span>
+          </div>
+        </div>
+
+        {/* 24h Volume */}
+        <div className="flex flex-col">
+          <span className="text-[12px] text-gray-400 underline decoration-gray-400 underline-offset-4">
+            24h Volume
+          </span>
+          <span className="font-mono text-[13px] text-white min-w-[100px]">
+            $
+            {Number(marketData.ctx.dayNtlVlm).toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
+          </span>
+        </div>
+        {/* Funding */}
+        <div className="flex flex-col">
+          <span className="text-[12px] text-gray-400 underline decoration-gray-400 underline-offset-4">
+            Funding
+          </span>
+          <div className="flex items-center gap-1">
+            <span
+              className={`font-mono text-[13px] min-w-[60px] ${
+                flashStates.funding === "up"
+                  ? "flash-green"
+                  : flashStates.funding === "down"
+                  ? "flash-red"
+                  : marketData.funding >= 0
+                  ? "text-[#50d2c1]"
+                  : "text-[#ED7088]"
+              }`}>
+              {(marketData.ctx.funding * 100).toFixed(4)}%
+            </span>
+          </div>
         </div>
       </div>
     </div>

@@ -50,6 +50,7 @@ const ConnectModal = () => {
   };
 
   const checkUser = async () => {
+    console.log(user);
     if (user) {
       const address = user.wallet.address;
       const { data, error } = await supabase

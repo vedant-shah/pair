@@ -6,6 +6,7 @@ import { Checkbox } from "../ui/checkbox";
 import LeverageModal from "./LeverageModal";
 import { usePrivy } from "@privy-io/react-auth";
 import { ethers } from "ethers";
+import SlippageModal from "./SlippageModal";
 
 const TradingForm = ({
   buyOrSell,
@@ -19,7 +20,7 @@ const TradingForm = ({
   const [webData2, setWebData2] = useState(null);
   const [size, setSize] = useState("");
   const [sizeUnit, setSizeUnit] = useState("BTC");
-  const [sliderValue, setSliderValue] = useState(47);
+  const [sliderValue, setSliderValue] = useState(0);
   const [reduceOnly, setReduceOnly] = useState(false);
   const [tpsl, setTpsl] = useState(false);
   const [leverage, setLeverage] = useState({
@@ -28,11 +29,40 @@ const TradingForm = ({
   });
   const [isLeverageModalOpen, setIsLeverageModalOpen] = useState(false);
 
-  const { ready, authenticated, user, signTypedData } = usePrivy();
+  // New state variables for TP/SL
+  const [tpPrice, setTpPrice] = useState("");
+  const [tpGainPercent, setTpGainPercent] = useState("");
+  const [slPrice, setSlPrice] = useState("");
+  const [slLossPercent, setSlLossPercent] = useState("");
+
+  const [slippage, setSlippage] = useState("1.00");
+  const [isSlippageModalOpen, setIsSlippageModalOpen] = useState(false);
+
+  const [price, setPrice] = useState("");
+
+  const { ready, authenticated, user } = usePrivy();
+
+  function formatPrice(price, precision) {
+    // Use toPrecision to get the string representation with the desired precision
+    const preciseValue = Number(price).toFixed(precision);
+
+    // Split into integer and fractional parts for custom formatting
+    const [integerPart, fractionalPart] = preciseValue.split(".");
+
+    // Use toLocaleString for the integer part and reattach the fractional part manually
+    const formattedIntegerPart = Number(integerPart).toLocaleString();
+
+    if (fractionalPart) {
+      // Reattach the fractional part without altering it
+      return `${formattedIntegerPart}.${fractionalPart}`;
+    }
+
+    return formattedIntegerPart; // No fractional part, return just the integer part
+  }
 
   useEffect(() => {
     if (ready && authenticated) {
-      const ws = new WebSocket("wss://api.hyperliquid.xyz/ws");
+      const ws = new WebSocket("wss://api.hyperliquid-testnet.xyz/ws");
 
       ws.onopen = () => {
         ws.send(
@@ -61,34 +91,72 @@ const TradingForm = ({
     });
   }, [firstAsset, secondAsset]);
 
+  // Reset TP/SL values when checkbox is unchecked
+  useEffect(() => {
+    if (!tpsl) {
+      setTpPrice("");
+      setTpGainPercent("");
+      setSlPrice("");
+      setSlLossPercent("");
+    }
+  }, [tpsl]);
+
+  // Add new effect to calculate size based on slider, available funds, and leverage
+  useEffect(() => {
+    if (webData2?.clearinghouseState?.marginSummary) {
+      const availableToTrade =
+        Number(webData2.clearinghouseState.marginSummary.accountValue) -
+        Number(webData2.clearinghouseState.marginSummary.totalMarginUsed);
+
+      const currentLeverage =
+        firstAsset === "BTC" ? leverage.firstAsset : leverage.secondAsset;
+      const calculatedSize =
+        availableToTrade * (sliderValue / 100) * currentLeverage;
+
+      setSize(formatPrice(calculatedSize, 2));
+    }
+  }, [sliderValue, webData2, leverage, firstAsset]);
+
+  // Reset values when order type changes
+  useEffect(() => {
+    setPrice("");
+    setSize("");
+    setSliderValue(1);
+  }, [orderType]);
+
+  const handlePlaceOrder = () => {
+    // This will be implemented later
+    console.log("Place order clicked");
+  };
+
   return (
-    <div className="flex flex-col h-full bg-[#041318] p-2">
+    <div className="flex flex-col h-full bg-[#041318] p-2 text-xs">
       {/* Cross and 20x buttons */}
       <div className="flex gap-2 mb-4">
         <Button
           variant="outline"
-          className="flex-1 bg-[#293233] hover:bg-[#2f393a] text-white border-0">
+          className="flex-1 bg-[#293233] hover:bg-[#2f393a] text-white border-0 text-xs">
           Cross
         </Button>
         <Button
           variant="outline"
           onClick={() => setIsLeverageModalOpen(true)}
-          className="flex-1 bg-[#293233] hover:bg-[#2f393a] text-white border-0">
+          className="flex-1 bg-[#293233] hover:bg-[#2f393a] text-white border-0 text-xs">
           {leverage.firstAsset}x / {leverage.secondAsset}x
         </Button>
       </div>
 
       {/* Order Type Tabs */}
       <Tabs defaultValue="market" className="mb-4" onValueChange={setOrderType}>
-        <TabsList className="w-full p-0 bg-transparent border-b border-gray-800 rounded-none">
+        <TabsList className="w-full p-0 text-xs bg-transparent border-b border-gray-800 rounded-none">
           <TabsTrigger
             value="market"
-            className="flex-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-[#50d2c1] data-[state=active]:border-b-2 data-[state=active]:border-[#50d2c1] rounded-none">
+            className="flex-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-[#50d2c1] data-[state=active]:border-b-2 data-[state=active]:border-[#50d2c1] rounded-none text-xs">
             Market
           </TabsTrigger>
           <TabsTrigger
             value="limit"
-            className="flex-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-[#50d2c1] data-[state=active]:border-b-2 data-[state=active]:border-[#50d2c1] rounded-none">
+            className="flex-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-[#50d2c1] data-[state=active]:border-b-2 data-[state=active]:border-[#50d2c1] rounded-none text-xs">
             Limit
           </TabsTrigger>
         </TabsList>
@@ -98,7 +166,7 @@ const TradingForm = ({
       <div className="flex gap-2 mb-4">
         <Button
           variant={buyOrSell === "buy" ? "default" : "outline"}
-          className={`flex-1 ${
+          className={`flex-1 text-xs ${
             buyOrSell === "buy"
               ? "bg-[#50d2c1] hover:bg-[#50d2c1]/90 text-black"
               : "text-[#50d2c1] border-[#50d2c1] hover:bg-[#50d2c1]/10"
@@ -108,7 +176,7 @@ const TradingForm = ({
         </Button>
         <Button
           variant={buyOrSell === "sell" ? "default" : "outline"}
-          className={`flex-1 ${
+          className={`flex-1 text-xs ${
             buyOrSell === "sell"
               ? "bg-[#ED7088] hover:bg-[#ED7088]/90 text-black"
               : "text-[#ED7088] border-[#ED7088] hover:bg-[#ED7088]/10"
@@ -119,52 +187,66 @@ const TradingForm = ({
       </div>
 
       {/* Trading Info */}
-      <div className="flex justify-between mb-4 text-sm">
+      <div className="flex justify-between mb-4 text-xs">
         <span className="text-gray-400">Available to Trade</span>
-        <span className="text-white">0.00</span>
+        <span className="text-white">
+          {formatPrice(
+            Number(webData2?.clearinghouseState?.marginSummary?.accountValue) -
+              Number(
+                webData2?.clearinghouseState?.marginSummary?.totalMarginUsed
+              ),
+            2
+          ) || "0.00"}{" "}
+          USD
+        </span>
       </div>
-      <div className="flex justify-between mb-4 text-sm">
+      <div className="flex justify-between mb-4 text-xs">
         <span className="text-gray-400">Current Position</span>
-        <span className="text-white">0.00 BTC</span>
+        <span className="text-[#50d2c1]">0.00014 BTC</span>
       </div>
+
+      {/* Price Input for Limit Orders */}
+      {orderType === "limit" && (
+        <div className="relative mb-4">
+          <input
+            type="text"
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            placeholder="Price"
+            className="w-full px-3 py-2 bg-[#041318] border border-gray-800 rounded text-white placeholder-gray-500 focus:outline-none focus:border-[#50d2c1] text-xs"
+          />
+          <button
+            onClick={() => {
+              // Set price to mid price from webData2 if available
+              if (webData2?.clearinghouseState?.marginSummary?.midPx) {
+                setPrice(
+                  formatPrice(
+                    webData2.clearinghouseState.marginSummary.midPx,
+                    2
+                  )
+                );
+              }
+            }}
+            className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-[#293233] rounded text-gray-400 hover:text-white text-xs">
+            Mid
+          </button>
+        </div>
+      )}
 
       {/* Size Input */}
       <div className="relative mb-4">
-        <div className="flex">
-          <div className="w-full mt-2">
-            <div className="flex items-center rounded-md bg-[#041318] pl-3 outline outline-1 -outline-offset-1 outline-gray-300 has-[input:focus-within]:outline has-[input:focus-within]:outline-2 has-[input:focus-within]:-outline-offset-2 has-[input:focus-within]:outline-indigo-600">
-              <input
-                type="text"
-                name="price"
-                id="price"
-                className="block min-w-0 grow py-1.5 pl-1 pr-3 bg-[#041318] text-base text-gray-900 placeholder:text-gray-400 focus:outline focus:outline-0 sm:text-sm/6"
-                placeholder="0.00"
-              />
-              <div className="grid grid-cols-1 shrink-0 focus-within:relative">
-                <select
-                  id="currency"
-                  name="currency"
-                  aria-label="Currency"
-                  className="col-start-1 row-start-1 bg-[#041318] w-full appearance-none rounded-md py-1.5 pl-3 pr-7 text-base text-gray-500 placeholder:text-gray-400 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6">
-                  <option>SOL</option>
-                  <option>USD</option>
-                </select>
-                <svg
-                  className="self-center col-start-1 row-start-1 mr-2 text-gray-500 pointer-events-none size-5 justify-self-end sm:size-4"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
-                  aria-hidden="true"
-                  data-slot="icon">
-                  <path
-                    fillRule="evenodd"
-                    d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </div>
-            </div>
-          </div>
-        </div>
+        <input
+          type="text"
+          value={size}
+          onChange={(e) => setSize(e.target.value)}
+          placeholder="Size"
+          className="w-full px-3 py-2 bg-[#041318] border border-gray-800 rounded text-white placeholder-gray-500 focus:outline-none focus:border-[#50d2c1] text-xs"
+        />
+        <button
+          onClick={() => setSizeUnit(sizeUnit === "BTC" ? "USD" : "BTC")}
+          className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-[#293233] rounded text-white text-xs">
+          {sizeUnit}
+        </button>
       </div>
 
       {/* Slider */}
@@ -175,45 +257,115 @@ const TradingForm = ({
           max={100}
           step={1}
         />
-        <div className="flex justify-end mt-1 text-sm text-white">
+        <div className="flex justify-end mt-1 text-xs text-white">
           {sliderValue}%
         </div>
       </div>
 
-      {/* Radio Options */}
+      {/* Checkboxes */}
       <div className="flex flex-col gap-2 mb-4">
-        <label className="flex items-center gap-2 text-sm text-gray-400">
+        <label className="flex items-center gap-2 text-xs text-gray-400">
           <Checkbox checked={reduceOnly} onCheckedChange={setReduceOnly} />
           Reduce Only
         </label>
-        <label className="flex items-center gap-2 text-sm text-gray-400">
+        <label className="flex items-center gap-2 text-xs text-gray-400">
           <Checkbox checked={tpsl} onCheckedChange={setTpsl} />
           Take Profit / Stop Loss
         </label>
       </div>
 
+      {/* TP/SL Input Fields */}
+      {tpsl && (
+        <div className="flex flex-col gap-3 mb-4">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="relative">
+              <input
+                type="text"
+                value={tpPrice}
+                onChange={(e) => setTpPrice(e.target.value)}
+                placeholder="TP Price"
+                className="w-full px-3 py-2 bg-[#041318] border border-gray-800 rounded text-white placeholder-gray-500 focus:outline-none focus:border-[#50d2c1] text-xs"
+              />
+            </div>
+            <div className="relative">
+              <input
+                type="text"
+                value={tpGainPercent}
+                onChange={(e) => setTpGainPercent(e.target.value)}
+                placeholder="Gain %"
+                className="w-full px-3 py-2 bg-[#041318] border border-gray-800 rounded text-white placeholder-gray-500 focus:outline-none focus:border-[#50d2c1] text-xs"
+              />
+              <span className="absolute text-xs text-gray-400 -translate-y-1/2 right-3 top-1/2">
+                %
+              </span>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="relative">
+              <input
+                type="text"
+                value={slPrice}
+                onChange={(e) => setSlPrice(e.target.value)}
+                placeholder="SL Price"
+                className="w-full px-3 py-2 bg-[#041318] border border-gray-800 rounded text-white placeholder-gray-500 focus:outline-none focus:border-[#50d2c1] text-xs"
+              />
+            </div>
+            <div className="relative">
+              <input
+                type="text"
+                value={slLossPercent}
+                onChange={(e) => setSlLossPercent(e.target.value)}
+                placeholder="Loss %"
+                className="w-full px-3 py-2 bg-[#041318] border border-gray-800 rounded text-white placeholder-gray-500 focus:outline-none focus:border-[#50d2c1] text-xs"
+              />
+              <span className="absolute text-xs text-gray-400 -translate-y-1/2 right-3 top-1/2">
+                %
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="mt-auto">
         <hr className="my-2 border-gray-800" />
-        <div className="flex justify-between mb-2 text-sm">
+        <div className="flex justify-between mb-2 text-xs">
           <span className="text-gray-400">Liquidation Price</span>
           <span className="text-white">N/A</span>
         </div>
-        <div className="flex justify-between mb-2 text-sm">
+        <div className="flex justify-between mb-2 text-xs">
           <span className="text-gray-400">Order Value</span>
           <span className="text-white">N/A</span>
         </div>
-        <div className="flex justify-between mb-2 text-sm">
+        <div className="flex justify-between mb-2 text-xs">
           <span className="text-gray-400">Margin Required</span>
           <span className="text-white">N/A</span>
         </div>
-        <div className="flex justify-between mb-2 text-sm">
-          <span className="text-gray-400">Leverage</span>
-          <span className="text-[#50d2c1]">Est: 0% / Max: 8.00%</span>
+        <div className="flex justify-between mb-2 text-xs">
+          <span className="text-gray-400">Slippage</span>
+          <span
+            onClick={() => setIsSlippageModalOpen(true)}
+            className="text-[#50d2c1] cursor-pointer hover:text-[#50d2c1]/80 group relative">
+            Est: 0% / Max: {slippage}%
+            <span className="absolute hidden group-hover:block right-0 -top-6 text-gray-400 whitespace-nowrap bg-[#293233] px-2 py-1 rounded text-xs">
+              Click to Adjust
+            </span>
+          </span>
         </div>
-        <div className="flex justify-between text-sm">
+        <div className="flex justify-between mb-4 text-xs">
           <span className="text-gray-400">Fees</span>
           <span className="text-white">0.0350% / 0.0100%</span>
         </div>
+
+        {/* Place Order Button */}
+        <Button
+          onClick={handlePlaceOrder}
+          className={`w-full py-6 text-black font-medium text-xs ${
+            buyOrSell === "buy"
+              ? "bg-[#50d2c1] hover:bg-[#50d2c1]/90"
+              : "bg-[#ED7088] hover:bg-[#ED7088]/90"
+          }`}>
+          Place Order
+        </Button>
       </div>
 
       <LeverageModal
@@ -224,6 +376,13 @@ const TradingForm = ({
         meta={meta}
         firstAsset={firstAsset}
         secondAsset={secondAsset}
+      />
+
+      <SlippageModal
+        open={isSlippageModalOpen}
+        onOpenChange={setIsSlippageModalOpen}
+        slippage={slippage}
+        setSlippage={setSlippage}
       />
     </div>
   );
