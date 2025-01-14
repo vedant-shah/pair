@@ -14,12 +14,13 @@ import { usePrivy } from "@privy-io/react-auth";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
-  "https://boxsecwejarnjitfehyv.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJveHNlY3dlamFybmppdGZlaHl2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzYyNTgwODYsImV4cCI6MjA1MTgzNDA4Nn0.g0LkMMxbj2AKuwBcU4AYVcvuGUZlEuD8zcHCxgwheNY"
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
 );
 
 const ConnectModal = () => {
-  const { ready, authenticated, login, user, logout } = usePrivy();
+  const { ready, authenticated, login, user, logout, getAccessToken } =
+    usePrivy();
   const [showNewUserModal, setShowNewUserModal] = useState(false);
   const [privateKey, setPrivateKey] = useState("");
   const disableLogin = !ready || (ready && authenticated);
@@ -50,23 +51,39 @@ const ConnectModal = () => {
   };
 
   const checkUser = async () => {
-    console.log(user);
     if (user) {
-      const address = user.wallet.address;
-      const { data, error } = await supabase
+      console.log("address:", user.wallet.address);
+      const { count, error } = await supabase
         .from("users")
-        .select("*")
-        .eq("address", address);
+        .select("*", { count: "exact", head: true })
+        .eq("address", user.wallet.address);
 
-      if (data.length === 0) {
+      // console.log(count);
+
+      if (count === 0) {
         setShowNewUserModal(true);
       }
     }
   };
 
+  const storeAccessToken = async () => {
+    const accessToken = await getAccessToken();
+
+    //store in session storage
+    if (accessToken) {
+      sessionStorage.setItem("accessToken", accessToken);
+    } else {
+      sessionStorage.removeItem("accessToken");
+    }
+  };
+
   useEffect(() => {
-    checkUser();
-  }, [authenticated]);
+    if (ready && authenticated) {
+      checkUser();
+
+      storeAccessToken();
+    }
+  }, [user]);
 
   return (
     <>
@@ -80,7 +97,8 @@ const ConnectModal = () => {
       ) : (
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2">
-            {user.wallet.address.slice(0, 6)}...{user.wallet.address.slice(-2)}
+            {user?.wallet?.address.slice(0, 6)}...
+            {user?.wallet?.address.slice(-2)}
             <svg
               width="15"
               height="15"
@@ -96,8 +114,8 @@ const ConnectModal = () => {
           </DropdownMenuTrigger>
           <DropdownMenuContent>
             <DropdownMenuLabel className="flex items-center justify-between gap-3">
-              {user.wallet.address.slice(0, 6)}...
-              {user.wallet.address.slice(-2)}
+              {user?.wallet?.address.slice(0, 6)}...
+              {user?.wallet?.address.slice(-2)}
               <svg
                 width="15"
                 height="15"

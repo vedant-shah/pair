@@ -4,13 +4,14 @@ import OrderBook from "./components/trading/OrderBook";
 import TradingForm from "./components/trading/TradingForm";
 import ChartHeader from "./components/trading/ChartHeader";
 import Chart from "./components/trading/Chart";
+import UserPanel from "./components/trading/UserPanel";
 import { Toaster } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
-  "https://boxsecwejarnjitfehyv.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJveHNlY3dlamFybmppdGZlaHl2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzYyNTgwODYsImV4cCI6MjA1MTgzNDA4Nn0.g0LkMMxbj2AKuwBcU4AYVcvuGUZlEuD8zcHCxgwheNY"
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
 );
 
 // Tab configuration
@@ -144,16 +145,23 @@ function App() {
       <Toaster position="top-right" theme="dark" richColors duration={3000} />
       <div className="min-h-screen bg-[#041318] text-white">
         <Navbar />
-        <main className="min-h-[90vh] mx-auto">
+        <main className="min-h-[90vh] mx-auto overflow-hidden">
           <MobileNavigation activeTab={activeTab} onTabChange={setActiveTab} />
 
-          <div className="grid gap-1 bg-gray-600 lg:grid-cols-5">
-            {/* Desktop Layout */}
-            <TradingLayout className="flex-col hidden lg:flex lg:col-span-3">
+          <div className="grid max-w-full gap-1 bg-gray-600 lg:grid-cols-5">
+            {/* Chart Section */}
+            <TradingLayout
+              className={`col-span-full ${
+                !activeTab || activeTab === "chart" ? "flex flex-col" : "hidden"
+              } lg:col-span-3 lg:flex lg:flex-col`}>
               <ChartView {...commonProps} />
             </TradingLayout>
 
-            <TradingLayout className="hidden lg:block lg:col-span-1">
+            {/* Order Book */}
+            <TradingLayout
+              className={`col-span-full ${
+                activeTab === "orderBook" ? "flex flex-col" : "hidden"
+              } lg:col-span-1 lg:flex lg:flex-col`}>
               <OrderBook
                 firstAsset={firstAsset}
                 secondAsset={secondAsset}
@@ -161,36 +169,19 @@ function App() {
               />
             </TradingLayout>
 
-            <TradingLayout className="hidden lg:block lg:col-span-1">
+            {/* Trading Form */}
+            <TradingLayout
+              className={`col-span-full ${
+                activeTab === "tradingForm" ? "flex flex-col" : "hidden"
+              } lg:col-span-1 lg:flex lg:flex-col`}>
               <TradingForm {...commonProps} />
             </TradingLayout>
 
-            {/* Mobile Layout */}
-            {activeTab === "chart" && (
-              <TradingLayout className="flex flex-col lg:hidden col-span-full">
-                <ChartView {...commonProps} />
-              </TradingLayout>
-            )}
-
-            {activeTab === "orderBook" && (
-              <TradingLayout className="lg:hidden col-span-full">
-                <OrderBook
-                  firstAsset={firstAsset}
-                  secondAsset={secondAsset}
-                  buyOrSell={buyOrSell}
-                />
-              </TradingLayout>
-            )}
-
-            {activeTab === "tradingForm" && (
-              <TradingLayout className="lg:hidden col-span-full">
-                <TradingForm {...commonProps} />
-              </TradingLayout>
-            )}
-
             {/* Footer */}
-            <div className="bg-[#041318] lg:col-span-4 col-span-full h-[100px]" />
-            <div className="hidden lg:block bg-[#041318] lg:col-span-1 h-[100px]" />
+            <div className="bg-[#041318] w-full lg:col-span-4 col-span-full overflow-x-hidden">
+              <UserPanel />
+            </div>
+            <div className="hidden lg:block bg-[#041318] lg:col-span-1" />
           </div>
         </main>
       </div>

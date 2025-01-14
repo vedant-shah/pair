@@ -373,7 +373,7 @@ function Chart({ firstAsset, secondAsset, interval, setInterval }) {
     );
 
   return (
-    <div className="h-full flex flex-col bg-[#041318]">
+    <div className="h-full w-full flex flex-col bg-[#041318]">
       <div className="inline-flex p-1 bg-gray-900 rounded-lg">
         {["5m", "15m", "1h", "4h", "1d", "1w", "1M"].map((int) => (
           <h1
@@ -386,7 +386,11 @@ function Chart({ firstAsset, secondAsset, interval, setInterval }) {
           </h1>
         ))}
       </div>
-      <div ref={chartContainerRef} style={{ width: "100%", height: "100%" }} />
+      <div
+        id="chartContainer"
+        ref={chartContainerRef}
+        style={{ width: "100%", height: "100%" }}
+      />
     </div>
   );
 }

@@ -66,6 +66,10 @@ const OrderBook = ({ firstAsset, secondAsset, buyOrSell }) => {
     };
   }, [firstAsset, secondAsset, processOrderBookData]); // Remove buyOrSell from here
 
+  useEffect(() => {
+    console.log("orderBook");
+  }, []);
+
   function formatPrice(price, precision) {
     // Use toPrecision to get the string representation with the desired precision
     const preciseValue = Number(price).toPrecision(precision);
