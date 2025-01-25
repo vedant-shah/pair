@@ -66,10 +66,6 @@ const OrderBook = ({ firstAsset, secondAsset, buyOrSell }) => {
     };
   }, [firstAsset, secondAsset, processOrderBookData]); // Remove buyOrSell from here
 
-  useEffect(() => {
-    console.log("orderBook");
-  }, []);
-
   function formatPrice(price, precision) {
     // Use toPrecision to get the string representation with the desired precision
     const preciseValue = Number(price).toPrecision(precision);
@@ -101,7 +97,7 @@ const OrderBook = ({ firstAsset, secondAsset, buyOrSell }) => {
           className={` pl-2 relative text-xs max-w-[max-content] ${
             side === "bid" ? "text-[#50d2c1]" : "text-[#ED7088]"
           }`}>
-          {formatPrice(price, 5)}
+          {formatPrice(price, 6)}
         </span>
         <span className="relative text-xs text-right text-white">
           {Math.round(Number(size)).toLocaleString()}

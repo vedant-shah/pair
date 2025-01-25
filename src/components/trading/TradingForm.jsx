@@ -7,6 +7,7 @@ import LeverageModal from "./LeverageModal";
 import { usePrivy } from "@privy-io/react-auth";
 import { ethers } from "ethers";
 import SlippageModal from "./SlippageModal";
+import { formatNumber } from "@/lib/utils";
 
 const TradingForm = ({
   buyOrSell,
@@ -19,7 +20,7 @@ const TradingForm = ({
     order: {
       type: "market",
       size: "",
-      sizeUnit: "BTC",
+      sizeUnit: "USD",
       price: "",
       sliderValue: 0,
       reduceOnly: false,
@@ -36,17 +37,6 @@ const TradingForm = ({
   });
 
   const { ready, authenticated, user } = usePrivy();
-
-  function formatPrice(price, precision) {
-    const preciseValue = Number(price).toFixed(precision);
-    const [integerPart, fractionalPart] = preciseValue.split(".");
-    const formattedIntegerPart = Number(integerPart).toLocaleString();
-
-    if (fractionalPart) {
-      return `${formattedIntegerPart}.${fractionalPart}`;
-    }
-    return formattedIntegerPart;
-  }
 
   useEffect(() => {
     if (ready && authenticated) {
@@ -104,21 +94,18 @@ const TradingForm = ({
           formState.webData2.clearinghouseState.marginSummary.totalMarginUsed
         );
 
-      const currentLeverage =
-        firstAsset === "BTC"
-          ? formState.leverage.firstAsset
-          : formState.leverage.secondAsset;
-
       const calculatedSize =
-        availableToTrade *
-        (formState.order.sliderValue / 100) *
-        currentLeverage;
+        ((formState.order.sliderValue / 100) *
+          (2 *
+            availableToTrade *
+            (formState.leverage.firstAsset * formState.leverage.secondAsset))) /
+        (formState.leverage.firstAsset + formState.leverage.secondAsset);
 
       setFormState((prev) => ({
         ...prev,
         order: {
           ...prev.order,
-          size: formatPrice(calculatedSize, 2),
+          size: calculatedSize,
         },
       }));
     }
@@ -136,7 +123,7 @@ const TradingForm = ({
       order: {
         ...prev.order,
         price: "",
-        size: "",
+        size: 0.0,
         sliderValue: 0,
       },
     }));
@@ -220,7 +207,7 @@ const TradingForm = ({
       <div className="flex justify-between mb-4 text-xs">
         <span className="text-gray-400">Available to Trade</span>
         <span className="text-white">
-          {formatPrice(
+          {formatNumber(
             Number(
               formState.webData2?.clearinghouseState?.marginSummary
                 ?.accountValue
@@ -263,7 +250,7 @@ const TradingForm = ({
                   ...prev,
                   order: {
                     ...prev.order,
-                    price: formatPrice(
+                    price: formatNumber(
                       formState.webData2.clearinghouseState.marginSummary.midPx,
                       2
                     ),
@@ -281,27 +268,17 @@ const TradingForm = ({
       <div className="relative mb-4">
         <input
           type="text"
-          value={formState.order.size}
+          value={formatNumber(formState.order.size, 2)}
           onChange={(e) =>
             setFormState((prev) => ({
               ...prev,
-              order: { ...prev.order, size: e.target.value },
+              order: { ...prev.order, size: Number(e.target.value) },
             }))
           }
           placeholder="Size"
           className="w-full px-3 py-2 bg-[#041318] border border-gray-800 rounded text-white placeholder-gray-500 focus:outline-none focus:border-[#50d2c1] text-xs"
         />
-        <button
-          onClick={() =>
-            setFormState((prev) => ({
-              ...prev,
-              order: {
-                ...prev.order,
-                sizeUnit: prev.order.sizeUnit === "BTC" ? "USD" : "BTC",
-              },
-            }))
-          }
-          className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-[#293233] rounded text-white text-xs">
+        <button className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-[#293233] rounded text-white text-xs">
           {formState.order.sizeUnit}
         </button>
       </div>
@@ -464,7 +441,14 @@ const TradingForm = ({
         </div>
         <div className="flex justify-between mb-2 text-xs">
           <span className="text-gray-400">Margin Required</span>
-          <span className="text-white">N/A</span>
+          <span className="text-white">
+            {formatNumber(
+              (Number(formState.order.size) / 2) *
+                (formState.leverage.firstAsset +
+                  formState.leverage.secondAsset),
+              2
+            )}
+          </span>
         </div>
         <div className="flex justify-between mb-2 text-xs">
           <span className="text-gray-400">Slippage</span>

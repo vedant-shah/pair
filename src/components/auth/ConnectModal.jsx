@@ -23,64 +23,82 @@ const ConnectModal = () => {
     usePrivy();
   const [showNewUserModal, setShowNewUserModal] = useState(false);
   const [privateKey, setPrivateKey] = useState("");
+  const [referer, setReferer] = useState("");
+  const [modalType, setModalType] = useState(""); // "privateKey", "referer", or "both"
   const disableLogin = !ready || (ready && authenticated);
 
-  const savePrivateKey = async () => {
-    if (!privateKey) {
-      toast.error("Please enter a private key");
-      return;
+  const saveUserData = async () => {
+    if (modalType === "privateKey" || modalType === "both") {
+      if (!privateKey) {
+        toast.error("Please enter a private key");
+        return;
+      }
     }
 
     try {
-      const { error } = await supabase.from("users").insert([
-        {
-          address: user.wallet.address,
-          private_key: privateKey,
-        },
-      ]);
+      const userData = {
+        address: sessionStorage.getItem("peri-userData")?.address,
+        ...(privateKey && { private_key: privateKey }),
+        ...(referer.trim() !== "" && { referer: referer }),
+      };
 
-      if (error) throw error;
+      console.log(userData);
 
-      toast.success("Private key saved successfully");
+      //call the create user function
+
+      toast.success("Data saved successfully");
       setShowNewUserModal(false);
       setPrivateKey("");
+      setReferer("");
+      setModalType("");
     } catch (error) {
-      toast.error("Failed to save private key");
+      toast.error("Failed to save data");
       console.error(error);
     }
   };
 
   const checkUser = async () => {
-    if (user) {
-      console.log("address:", user.wallet.address);
-      const { count, error } = await supabase
-        .from("users")
-        .select("*", { count: "exact", head: true })
-        .eq("address", user.wallet.address);
+    if (!user) return;
 
-      // console.log(count);
+    try {
+      //check if the user is in the database
+      const data = undefined;
 
-      if (count === 0) {
+      if (!data) {
+        // User not found in database
+        if (user.wallet) {
+          // User has a wallet, need both private key and referer
+          setModalType("both");
+        } else {
+          // User doesn't have a wallet, only need referer
+          setModalType("referer");
+        }
+
+        //store the user data in the session storage after creating the user.
+
         setShowNewUserModal(true);
+      } else {
+        // User found, store in session storage
+        sessionStorage.setItem("peri-userData", JSON.stringify(data));
       }
+    } catch (error) {
+      console.error("Error checking user:", error);
     }
   };
 
   const storeAccessToken = async () => {
     const accessToken = await getAccessToken();
-
-    //store in session storage
+    console.log("accessToken:", accessToken);
     if (accessToken) {
-      sessionStorage.setItem("accessToken", accessToken);
+      sessionStorage.setItem("privy-accessToken", accessToken);
     } else {
-      sessionStorage.removeItem("accessToken");
+      sessionStorage.removeItem("privy-accessToken");
     }
   };
 
   useEffect(() => {
     if (ready && authenticated) {
       checkUser();
-
       storeAccessToken();
     }
   }, [user]);
@@ -149,28 +167,50 @@ const ConnectModal = () => {
       )}
 
       <Dialog open={showNewUserModal} onOpenChange={setShowNewUserModal}>
-        <DialogContent className="bg-[#041318] border-gray-800 text-white">
+        <DialogContent
+          className="bg-[#041318] border-gray-800 text-white"
+          showCloseButton={false}
+          onPointerDownOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="text-lg font-normal">
-              Enter Private Key
+              Complete Setup
             </DialogTitle>
           </DialogHeader>
 
-          <div className="py-4">
-            <p className="mb-4 text-sm text-gray-400">
-              Please enter your private key to complete the setup.
-            </p>
-            <input
-              type="password"
-              value={privateKey}
-              onChange={(e) => setPrivateKey(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-[#293233] border border-gray-700 rounded focus:outline-none focus:border-[#50d2c1]"
-              placeholder="Enter your private key"
-            />
+          <div className="py-4 space-y-4">
+            {(modalType === "privateKey" || modalType === "both") && (
+              <div>
+                <p className="mb-2 text-sm text-gray-400">
+                  Please enter your private key.
+                </p>
+                <input
+                  type="password"
+                  value={privateKey}
+                  onChange={(e) => setPrivateKey(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-[#293233] border border-gray-700 rounded focus:outline-none focus:border-[#50d2c1]"
+                  placeholder="Enter your private key"
+                />
+              </div>
+            )}
+
+            {(modalType === "referer" || modalType === "both") && (
+              <div>
+                <p className="mb-2 text-sm text-gray-400">
+                  Please enter your referer's address.
+                </p>
+                <input
+                  type="text"
+                  value={referer}
+                  onChange={(e) => setReferer(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-[#293233] border border-gray-700 rounded focus:outline-none focus:border-[#50d2c1]"
+                  placeholder="Enter referer's address"
+                />
+              </div>
+            )}
           </div>
 
           <button
-            onClick={savePrivateKey}
+            onClick={saveUserData}
             className="w-full bg-[#50d2c1] text-black py-2 rounded hover:bg-[#50d2c1]/90 font-medium">
             Save
           </button>

@@ -1,11 +1,5 @@
 import React from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogClose,
-} from "../ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Slider } from "../ui/slider";
 import { toast } from "sonner";
 
@@ -33,7 +27,9 @@ const LeverageModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-[#041318] border-gray-800 text-white">
+      <DialogContent
+        className="bg-[#041318] border-gray-800 text-white"
+        showCloseButton={true}>
         <DialogHeader>
           <DialogTitle className="text-lg font-normal">
             Adjust Leverage
@@ -95,18 +91,17 @@ const LeverageModal = ({
           </p>
         </div>
 
-        <DialogClose asChild>
-          <button
-            onClick={() => {
-              setLeverage(tempLeverage);
-              toast.success(
-                `Leverage set to ${tempLeverage.firstAsset}x for ${firstAsset} and ${tempLeverage.secondAsset}x for ${secondAsset}`
-              );
-            }}
-            className="w-full bg-[#50d2c1] text-black py-2 rounded hover:bg-[#50d2c1]/90 font-medium">
-            Confirm
-          </button>
-        </DialogClose>
+        <button
+          onClick={() => {
+            setLeverage(tempLeverage);
+            toast.success(
+              `Leverage set to ${tempLeverage.firstAsset}x for ${firstAsset} and ${tempLeverage.secondAsset}x for ${secondAsset}`
+            );
+            onOpenChange(false);
+          }}
+          className="w-full bg-[#50d2c1] text-black py-2 rounded hover:bg-[#50d2c1]/90 font-medium">
+          Confirm
+        </button>
       </DialogContent>
     </Dialog>
   );

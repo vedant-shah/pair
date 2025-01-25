@@ -1,11 +1,5 @@
 import React from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogClose,
-} from "../ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { toast } from "sonner";
 
 const SlippageModal = ({ open, onOpenChange, slippage, setSlippage }) => {
@@ -13,7 +7,9 @@ const SlippageModal = ({ open, onOpenChange, slippage, setSlippage }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-[#041318] border-gray-800 text-white">
+      <DialogContent
+        className="bg-[#041318] border-gray-800 text-white"
+        showCloseButton={true}>
         <DialogHeader>
           <DialogTitle className="text-lg font-normal">
             Adjust Max Slippage
@@ -41,16 +37,15 @@ const SlippageModal = ({ open, onOpenChange, slippage, setSlippage }) => {
           </div>
         </div>
 
-        <DialogClose asChild>
-          <button
-            onClick={() => {
-              setSlippage(tempSlippage);
-              toast.success(`Max slippage set to ${tempSlippage}%`);
-            }}
-            className="w-full bg-[#50d2c1] text-black py-2 rounded hover:bg-[#50d2c1]/90 font-medium text-xs">
-            Confirm
-          </button>
-        </DialogClose>
+        <button
+          onClick={() => {
+            setSlippage(tempSlippage);
+            toast.success(`Max slippage set to ${tempSlippage}%`);
+            onOpenChange(false);
+          }}
+          className="w-full bg-[#50d2c1] text-black py-2 rounded hover:bg-[#50d2c1]/90 font-medium text-xs">
+          Confirm
+        </button>
       </DialogContent>
     </Dialog>
   );
