@@ -7,12 +7,6 @@ import Chart from "./components/trading/Chart";
 import UserPanel from "./components/trading/UserPanel";
 import { Toaster } from "sonner";
 import { useQuery } from "@tanstack/react-query";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-);
 
 // Tab configuration
 const TABS = [

@@ -11,12 +11,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { toast } from "sonner";
 import { Button } from "../ui/button";
 import { usePrivy } from "@privy-io/react-auth";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-);
 
 const ConnectModal = () => {
   const { ready, authenticated, login, user, logout, getAccessToken } =
