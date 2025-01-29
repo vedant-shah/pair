@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createChart } from "lightweight-charts";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
 function Chart({ firstAsset, secondAsset, interval, setInterval }) {
+  "use no memo";
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
@@ -151,9 +152,9 @@ function Chart({ firstAsset, secondAsset, interval, setInterval }) {
           const candle = data.data;
 
           // Store the latest candle data for each asset
-          if (candle.coin === firstAsset) {
+          if (candle.s === firstAsset) {
             latestFirstAssetCandle = candle;
-          } else if (candle.coin === secondAsset) {
+          } else if (candle.s === secondAsset) {
             latestSecondAssetCandle = candle;
           }
 
