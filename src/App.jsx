@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, lazy, Suspense } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -7,13 +7,17 @@ import {
 } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import Navbar from "./components/layout/Navbar";
-import OrderBook from "./components/trading/OrderBook";
-import TradingForm from "./components/trading/TradingForm";
-import ChartHeader from "./components/trading/ChartHeader";
-import Chart from "./components/trading/Chart";
-import UserPanel from "./components/trading/UserPanel";
-import RestrictedAccess from "./components/pages/RestrictedAccess";
 import { Toaster } from "sonner";
+
+// Lazy load components
+const OrderBook = lazy(() => import("./components/trading/OrderBook"));
+const TradingForm = lazy(() => import("./components/trading/TradingForm"));
+const ChartHeader = lazy(() => import("./components/trading/ChartHeader"));
+const Chart = lazy(() => import("./components/trading/Chart"));
+const UserPanel = lazy(() => import("./components/trading/UserPanel"));
+const RestrictedAccess = lazy(() =>
+  import("./components/pages/RestrictedAccess")
+);
 
 // Tab configuration
 const TABS = [
@@ -58,6 +62,13 @@ const MobileNavigation = ({ activeTab, onTabChange }) => (
   </div>
 );
 
+// Loading component
+const LoadingSpinner = () => (
+  <div className="min-h-screen bg-[#041318] flex items-center justify-center">
+    <img src="/logo.svg" alt="Loading" className="w-16 h-16 animate-spin" />
+  </div>
+);
+
 // Chart view component
 const ChartView = ({
   allCoins,
@@ -69,23 +80,25 @@ const ChartView = ({
   setInterval,
 }) => (
   <>
-    <ChartHeader
-      allCoins={allCoins}
-      firstAsset={firstAsset}
-      secondAsset={secondAsset}
-      setFirstAsset={setFirstAsset}
-      setSecondAsset={setSecondAsset}
-    />
-    <div className="flex-1 w-full p-4 overflow-hidden">
-      <div className="w-full h-full" id="chart">
-        <Chart
-          firstAsset={firstAsset}
-          secondAsset={secondAsset}
-          interval={interval}
-          setInterval={setInterval}
-        />
+    <Suspense fallback={<LoadingSpinner />}>
+      <ChartHeader
+        allCoins={allCoins}
+        firstAsset={firstAsset}
+        secondAsset={secondAsset}
+        setFirstAsset={setFirstAsset}
+        setSecondAsset={setSecondAsset}
+      />
+      <div className="flex-1 w-full p-4 overflow-hidden">
+        <div className="w-full h-full" id="chart">
+          <Chart
+            firstAsset={firstAsset}
+            secondAsset={secondAsset}
+            interval={interval}
+            setInterval={setInterval}
+          />
+        </div>
       </div>
-    </div>
+    </Suspense>
   </>
 );
 
@@ -162,11 +175,13 @@ const TradingView = () => {
             className={`col-span-full ${
               activeTab === "orderBook" ? "flex flex-col" : "hidden"
             } lg:col-span-1 lg:flex lg:flex-col`}>
-            <OrderBook
-              firstAsset={firstAsset}
-              secondAsset={secondAsset}
-              buyOrSell={buyOrSell}
-            />
+            <Suspense fallback={<LoadingSpinner />}>
+              <OrderBook
+                firstAsset={firstAsset}
+                secondAsset={secondAsset}
+                buyOrSell={buyOrSell}
+              />
+            </Suspense>
           </TradingLayout>
 
           {/* Trading Form */}
@@ -174,12 +189,16 @@ const TradingView = () => {
             className={`col-span-full ${
               activeTab === "tradingForm" ? "flex flex-col" : "hidden"
             } lg:col-span-1 lg:flex lg:flex-col`}>
-            <TradingForm {...commonProps} />
+            <Suspense fallback={<LoadingSpinner />}>
+              <TradingForm {...commonProps} />
+            </Suspense>
           </TradingLayout>
 
           {/* Footer */}
           <div className="bg-[#041318] w-full lg:col-span-4 col-span-full overflow-x-hidden">
-            <UserPanel />
+            <Suspense fallback={<LoadingSpinner />}>
+              <UserPanel />
+            </Suspense>
           </div>
           <div className="hidden lg:block bg-[#041318] lg:col-span-1" />
         </div>
@@ -233,11 +252,20 @@ const Root = () => {
               replace
             />
           ) : (
-            <TradingView />
+            <Suspense fallback={<LoadingSpinner />}>
+              <TradingView />
+            </Suspense>
           )
         }
       />
-      <Route path="/restricted" element={<RestrictedAccess />} />
+      <Route
+        path="/restricted"
+        element={
+          <Suspense fallback={<LoadingSpinner />}>
+            <RestrictedAccess />
+          </Suspense>
+        }
+      />
     </Routes>
   );
 };
