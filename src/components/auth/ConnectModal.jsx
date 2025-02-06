@@ -92,7 +92,7 @@ const ConnectModal = () => {
 
   useEffect(() => {
     if (ready && authenticated) {
-      checkUser();
+      // checkUser();
       storeAccessToken();
     }
   }, [user]);

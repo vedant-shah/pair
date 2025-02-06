@@ -15,7 +15,7 @@ function Chart({ firstAsset, secondAsset, interval, setInterval }) {
     numCandles = 200
   ) => {
     try {
-      const intervalInSeconds = {
+      const intervalInMs = {
         "5m": 5 * 60 * 1000,
         "15m": 15 * 60 * 1000,
         "1h": 60 * 60 * 1000,
@@ -25,70 +25,41 @@ function Chart({ firstAsset, secondAsset, interval, setInterval }) {
         "1M": 30 * 24 * 60 * 60 * 1000,
       };
 
-      const endTimeSeconds = Math.floor(endTime);
-      const startTimeSeconds =
-        endTimeSeconds - numCandles * intervalInSeconds[interval];
+      const endTimeMs = Math.floor(endTime);
+      const startTimeMs = endTimeMs - numCandles * intervalInMs[interval];
 
       const baseRequest = {
         type: "candleSnapshot",
         req: {
-          endTime: endTimeSeconds,
+          endTime: endTimeMs,
           interval: interval,
-          startTime: startTimeSeconds,
+          startTime: startTimeMs,
         },
       };
+      const body = {
+        quote: firstAsset,
+        base: secondAsset,
+        startTimestamp: Math.floor(startTimeMs / 1000),
+        endTimestamp: Math.floor(endTimeMs / 1000),
+        interval: interval,
+      };
 
-      let [assetOneCandles, assetTwoCandles] = await Promise.all([
-        fetch(`https://api.hyperliquid.xyz/info`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...baseRequest,
-            req: { ...baseRequest.req, coin: firstAsset },
-          }),
-        }).then((response) => response.json()),
-        fetch(`https://api.hyperliquid.xyz/info`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...baseRequest,
-            req: { ...baseRequest.req, coin: secondAsset },
-          }),
-        }).then((response) => response.json()),
-      ]);
+      const response = await fetch("https://hldata.suryansh.xyz/candle", {
+        method: "POST",
+        body: JSON.stringify(body),
+        headers: { "Content-Type": "application/json" },
+      });
 
-      // Use the smaller array for mapping to ensure we have matching pairs
-      const smallerArray =
-        assetOneCandles.length <= assetTwoCandles.length
-          ? assetOneCandles
-          : assetTwoCandles;
-      const largerArray =
-        assetOneCandles.length > assetTwoCandles.length
-          ? assetOneCandles
-          : assetTwoCandles;
+      const data = await response.json();
 
-      // Create a map for faster lookups
-      const largerArrayMap = new Map(
-        largerArray.map((candle) => [candle.t, candle])
-      );
-
-      return smallerArray
-        .map((smallerCandle) => {
-          const matchingCandle = largerArrayMap.get(smallerCandle.t);
-          if (!matchingCandle) return null;
-
-          const [candle1, candle2] =
-            assetOneCandles.length <= assetTwoCandles.length
-              ? [smallerCandle, matchingCandle]
-              : [matchingCandle, smallerCandle];
-
+      return data
+        .map((candle) => {
           return {
-            t: candle1.t,
-            o: Number(candle1.o) / Number(candle2.o),
-            h: Number(candle1.h) / Number(candle2.h),
-            l: Number(candle1.l) / Number(candle2.l),
-            c: Number(candle1.c) / Number(candle2.c),
-            v: Number(candle1.v) + Number(candle2.v),
+            t: new Date(candle[0]),
+            o: candle[1],
+            h: candle[2],
+            l: candle[3],
+            c: candle[4],
           };
         })
         .filter(Boolean); // Remove any null values
@@ -104,7 +75,7 @@ function Chart({ firstAsset, secondAsset, interval, setInterval }) {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["candles", "initial", firstAsset, secondAsset, interval],
+    queryKey: ["candles", firstAsset, secondAsset, interval],
     queryFn: () => fetchHistoricalCandles(Date.now(), 200), // Fetch last 200 candles
     refetchInterval: 1000 * 60 * 30, // 30 minutes
     refetchOnMount: false,
@@ -181,19 +152,19 @@ function Chart({ firstAsset, secondAsset, interval, setInterval }) {
                 Number(latestSecondAssetCandle.c),
             };
 
-            const volumeData = {
-              time: Math.floor(latestFirstAssetCandle.t / 1000),
-              value:
-                Number(latestFirstAssetCandle.v) +
-                Number(latestSecondAssetCandle.v),
-              color:
-                combinedCandle.close > combinedCandle.open
-                  ? "#174d4a"
-                  : "#833640",
-            };
+            // const volumeData = {
+            //   time: Math.floor(latestFirstAssetCandle.t / 1000),
+            //   value:
+            //     Number(latestFirstAssetCandle.v) +
+            //     Number(latestSecondAssetCandle.v),
+            //   color:
+            //     combinedCandle.close > combinedCandle.open
+            //       ? "#174d4a"
+            //       : "#833640",
+            // };
 
             candlestickSeries.update(combinedCandle);
-            volumeSeries.update(volumeData);
+            // volumeSeries.update(volumeData);
 
             // Reset the latest candles after updating
             latestFirstAssetCandle = null;
@@ -244,15 +215,15 @@ function Chart({ firstAsset, secondAsset, interval, setInterval }) {
       scaleMargins: { top: 0.2, bottom: 0.3 },
     });
 
-    const volumeSeries = chart.addHistogramSeries({
-      color: "#26a69a",
-      priceFormat: { type: "volume" },
-      priceScaleId: "",
-    });
+    // const volumeSeries = chart.addHistogramSeries({
+    //   color: "#26a69a",
+    //   priceFormat: { type: "volume" },
+    //   priceScaleId: "",
+    // });
 
-    volumeSeries.priceScale().applyOptions({
-      scaleMargins: { top: 0.8, bottom: 0 },
-    });
+    // volumeSeries.priceScale().applyOptions({
+    //   scaleMargins: { top: 0.8, bottom: 0 },
+    // });
 
     if (historicalCandleData) {
       const formattedData = historicalCandleData.map((candle) => ({
@@ -263,14 +234,14 @@ function Chart({ firstAsset, secondAsset, interval, setInterval }) {
         close: Number(candle.c),
       }));
 
-      const volumeData = historicalCandleData.map((candle) => ({
-        time: candle.t / 1000,
-        value: Number(candle.v),
-        color: Number(candle.c) > Number(candle.o) ? "#174d4a" : "#833640",
-      }));
+      // const volumeData = historicalCandleData.map((candle) => ({
+      //   time: candle.t / 1000,
+      //   value: Number(candle.v),
+      //   color: Number(candle.c) > Number(candle.o) ? "#174d4a" : "#833640",
+      // }));
 
       candlestickSeries.setData(formattedData);
-      volumeSeries.setData(volumeData);
+      // volumeSeries.setData(volumeData);
 
       chart.timeScale().setVisibleLogicalRange({
         from: formattedData.length - 30,
@@ -312,19 +283,19 @@ function Chart({ firstAsset, secondAsset, interval, setInterval }) {
                       close: Number(candle.c),
                     }));
 
-                  const volumeData = historicalData
-                    .slice(0, -1)
-                    .map((candle) => ({
-                      time: candle.t / 1000,
-                      value: Number(candle.v),
-                      color:
-                        Number(candle.c) > Number(candle.o)
-                          ? "#174d4a"
-                          : "#833640",
-                    }));
+                  // const volumeData = historicalData
+                  //   .slice(0, -1)
+                  //   .map((candle) => ({
+                  //     time: candle.t / 1000,
+                  //     value: Number(candle.v),
+                  //     color:
+                  //       Number(candle.c) > Number(candle.o)
+                  //         ? "#174d4a"
+                  //         : "#833640",
+                  //   }));
 
                   candlestickSeries.setData([...formattedData, ...data]);
-                  volumeSeries.setData([...volumeData, ...volumeSeries.data()]);
+                  // volumeSeries.setData([...volumeData, ...volumeSeries.data()]);
                 }
               })
               .catch((error) => {
@@ -348,7 +319,7 @@ function Chart({ firstAsset, secondAsset, interval, setInterval }) {
       };
 
       window.addEventListener("resize", handleResize);
-      testWebSocket(candlestickSeries, volumeSeries);
+      testWebSocket(candlestickSeries);
 
       return () => {
         window.removeEventListener("resize", handleResize);
