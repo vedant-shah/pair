@@ -17,12 +17,13 @@ const manifestForPlugin = {
         src: "./android-chrome-192x192.png",
         sizes: "192x192",
         type: "image/png",
+        purpose: "any",
       },
       {
         src: "./android-chrome-512x512.png",
         sizes: "512x512",
         type: "image/png",
-        purpose: "favicon",
+        purpose: "any maskable",
       },
       {
         src: "./apple-touch-icon.png",
@@ -59,7 +60,11 @@ const manifestForPlugin = {
     display: "standalone",
     scope: "/",
     start_url: "/",
-    orientation: "landscape",
+    orientation: "any",
+  },
+  workbox: {
+    maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+    globPatterns: ["**/*.{js,css,html,png,svg,ico}"],
   },
 };
 
@@ -73,6 +78,17 @@ export default defineConfig({
     }),
     VitePWA(manifestForPlugin),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ["react", "react-dom"],
+          chart: ["lightweight-charts"],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 4000,
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
