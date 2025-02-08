@@ -1,4 +1,4 @@
-import React, { useState, lazy, Suspense } from "react";
+import React, { useState, lazy, Suspense, useEffect } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -108,11 +108,26 @@ const ChartView = ({
 
 // Trading view component that includes the main trading interface
 const TradingView = () => {
-  const [firstAsset, setFirstAsset] = useState("BTC");
-  const [secondAsset, setSecondAsset] = useState("SOL");
+  const [firstAsset, setFirstAsset] = useState(() => {
+    const stored = localStorage.getItem("peri-first-asset");
+    return stored || "BTC";
+  });
+  const [secondAsset, setSecondAsset] = useState(() => {
+    const stored = localStorage.getItem("peri-second-asset");
+    return stored || "SOL";
+  });
   const [buyOrSell, setBuyOrSell] = useState("buy");
   const [interval, setInterval] = useState("1h");
   const [activeTab, setActiveTab] = useState("chart");
+
+  // Update localStorage when assets change
+  useEffect(() => {
+    localStorage.setItem("peri-first-asset", firstAsset);
+  }, [firstAsset]);
+
+  useEffect(() => {
+    localStorage.setItem("peri-second-asset", secondAsset);
+  }, [secondAsset]);
 
   const { data: allCoins } = useQuery({
     queryKey: ["coinData"],

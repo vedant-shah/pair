@@ -13,6 +13,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { AiOutlineSwap } from "react-icons/ai";
 
 const ChartHeader = ({
   allCoins,
@@ -23,6 +30,7 @@ const ChartHeader = ({
 }) => {
   const [openFirst, setOpenFirst] = React.useState(false);
   const [openSecond, setOpenSecond] = React.useState(false);
+  const [rotationDegrees, setRotationDegrees] = useState(0);
   let assetOneValues = {
     funding: 0.0,
     prevDayPx: 1,
@@ -56,6 +64,13 @@ const ChartHeader = ({
     mark: null,
     change24h: null,
   });
+
+  const handleSwap = () => {
+    setRotationDegrees((prev) => prev + 180);
+    const temp = firstAsset;
+    setFirstAsset(secondAsset);
+    setSecondAsset(temp);
+  };
 
   useEffect(() => {
     const ws = new WebSocket("wss://api.hyperliquid.xyz/ws");
@@ -93,18 +108,15 @@ const ChartHeader = ({
       if (!assetOneValues || !assetTwoValues) return;
 
       const pairAssetValues = {
-        markPx: (assetOneValues.markPx / assetTwoValues.markPx).toFixed(2),
-        prevDayPx: (
-          Number(assetOneValues.prevDayPx) / Number(assetTwoValues.prevDayPx)
-        ).toFixed(2),
+        markPx: Number(assetOneValues.markPx) / Number(assetTwoValues.markPx),
+        prevDayPx:
+          Number(assetOneValues.prevDayPx) / Number(assetTwoValues.prevDayPx),
         funding:
           Number(assetOneValues.funding) - Number(assetTwoValues.funding),
-        dayNtlVlm: (
-          Number(assetOneValues.dayNtlVlm) + Number(assetTwoValues.dayNtlVlm)
-        ).toFixed(2),
-        oraclePx: (assetOneValues.oraclePx / assetTwoValues.oraclePx).toFixed(
-          2
-        ),
+        dayNtlVlm:
+          Number(assetOneValues.dayNtlVlm) + Number(assetTwoValues.dayNtlVlm),
+        oraclePx:
+          Number(assetOneValues.oraclePx) / Number(assetTwoValues.oraclePx),
       };
 
       setMarketData((prev) => {
@@ -132,6 +144,9 @@ const ChartHeader = ({
     return () => ws.close();
   }, [firstAsset, secondAsset]);
 
+  useEffect(() => {
+    console.log(marketData);
+  }, [marketData]);
   return (
     <div className="flex items-center gap-6 px-4 py-2 bg-[#041318] border-b border-gray-800">
       {/* Coin Pair Selector */}
@@ -142,7 +157,7 @@ const ChartHeader = ({
               variant="outline"
               role="combobox"
               aria-expanded={openFirst}
-              className="w-[80px] justify-between border-[#041318]">
+              className="w-max justify-between border-[#041318]">
               {firstAsset ? (
                 <div className="flex items-center justify-center gap-1">
                   <img
@@ -187,14 +202,21 @@ const ChartHeader = ({
             </Command>
           </PopoverContent>
         </Popover>
-        <h1 className="text-xl font-bold text-white">-</h1>
+        <button
+          onClick={handleSwap}
+          className="text-xl font-bold text-white hover:text-[#50d2c1] transition-colors">
+          <AiOutlineSwap
+            className={`transition-transform duration-200`}
+            style={{ transform: `rotate(${rotationDegrees}deg)` }}
+          />
+        </button>
         <Popover open={openSecond} onOpenChange={setOpenSecond}>
           <PopoverTrigger asChild>
             <Button
               variant="outline"
               role="combobox"
               aria-expanded={openSecond}
-              className="w-[80px] justify-between border-[#041318]">
+              className="w-max justify-between border-[#041318]">
               {secondAsset ? (
                 <div className="flex items-center justify-center gap-1">
                   <img
@@ -244,29 +266,75 @@ const ChartHeader = ({
       <div className="flex items-center gap-6 overflow-x-auto no-scrollbar">
         {/* Mark Price */}
         <div className="flex flex-col">
-          <span className="text-[12px] text-gray-400 underline decoration-gray-400 underline-offset-1">
-            Mark
-          </span>
-          <span
-            className={`font-mono text-[13px]  ${
-              flashStates.mark === "up"
-                ? "flash-green"
-                : flashStates.mark === "down"
-                ? "flash-red"
-                : "text-white"
-            }`}>
-            {Number(marketData.ctx.markPx).toFixed(2)}
-          </span>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="text-[12px] text-gray-400 underline decoration-gray-400 underline-offset-1 cursor-default">
+                  Mark
+                </span>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-[180px]">
+                <p className="text-xs">
+                  Used for margining, computing unrealized PNL, liquidations,
+                  and triggering TP/SL orders
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span
+                  className={`font-mono text-[13px] ${
+                    flashStates.mark === "up"
+                      ? "flash-green"
+                      : flashStates.mark === "down"
+                      ? "flash-red"
+                      : "text-white"
+                  }`}>
+                  {Number(marketData.ctx.markPx).toFixed(2)}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-xs">
+                  {Number(marketData.ctx.markPx).toFixed(8)}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
 
         {/* Oracle Price */}
         <div className="flex flex-col">
-          <span className="text-[12px] text-gray-400 underline decoration-gray-400 underline-offset-4">
-            Oracle
-          </span>
-          <span className="font-mono text-[13px] text-white ">
-            {Number(marketData.ctx.oraclePx).toFixed(2)}
-          </span>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="text-[12px] text-gray-400 underline decoration-gray-400 underline-offset-4 cursor-default">
+                  Oracle
+                </span>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-[180px]">
+                <p className="text-xs">
+                  The median of external prices reported by validators, used for
+                  computing funding rates
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="font-mono text-[13px] text-white">
+                  {Number(marketData.ctx.oraclePx).toFixed(2)}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-xs">
+                  {Number(marketData.ctx.oraclePx).toFixed(8)}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
 
         {/* 24h Change */}
@@ -275,30 +343,57 @@ const ChartHeader = ({
             24h Change
           </span>
           <div className="flex items-center gap-1 min-w-[100px]">
-            <span
-              className={`font-mono text-[13px] ${
-                marketData.ctx.markPx >= marketData.ctx.prevDayPx
-                  ? "text-[#50d2c1]"
-                  : "text-[#ED7088]"
-              }`}>
-              {(Number(marketData.ctx.markPx) -
-                Number(marketData.ctx.prevDayPx) >=
-              0
-                ? "+"
-                : "") +
-                (
-                  Number(marketData.ctx.markPx) -
-                  Number(marketData.ctx.prevDayPx)
-                ).toFixed(2) +
-                " / " +
-                (
-                  ((Number(marketData.ctx.markPx) -
-                    Number(marketData.ctx.prevDayPx)) *
-                    100) /
-                  Number(marketData.ctx.prevDayPx)
-                ).toFixed(2) +
-                "%"}
-            </span>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    className={`font-mono text-[13px] ${
+                      marketData.ctx.markPx >= marketData.ctx.prevDayPx
+                        ? "text-[#50d2c1]"
+                        : "text-[#ED7088]"
+                    }`}>
+                    {(Number(marketData.ctx.markPx) -
+                      Number(marketData.ctx.prevDayPx) >=
+                    0
+                      ? "+"
+                      : "") +
+                      (
+                        Number(marketData.ctx.markPx) -
+                        Number(marketData.ctx.prevDayPx)
+                      ).toFixed(2) +
+                      " / " +
+                      (
+                        ((Number(marketData.ctx.markPx) -
+                          Number(marketData.ctx.prevDayPx)) *
+                          100) /
+                        Number(marketData.ctx.prevDayPx)
+                      ).toFixed(2) +
+                      "%"}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">
+                    {(Number(marketData.ctx.markPx) -
+                      Number(marketData.ctx.prevDayPx) >=
+                    0
+                      ? "+"
+                      : "") +
+                      (
+                        Number(marketData.ctx.markPx) -
+                        Number(marketData.ctx.prevDayPx)
+                      ).toFixed(8) +
+                      " / " +
+                      (
+                        ((Number(marketData.ctx.markPx) -
+                          Number(marketData.ctx.prevDayPx)) *
+                          100) /
+                        Number(marketData.ctx.prevDayPx)
+                      ).toFixed(8) +
+                      "%"}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
 
@@ -307,32 +402,69 @@ const ChartHeader = ({
           <span className="text-[12px] text-gray-400 underline decoration-gray-400 underline-offset-4">
             24h Volume
           </span>
-          <span className="font-mono text-[13px] text-white min-w-[100px]">
-            $
-            {Number(marketData.ctx.dayNtlVlm).toLocaleString("en-US", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
-          </span>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="font-mono text-[13px] text-white min-w-[100px]">
+                  $
+                  {Number(marketData.ctx.dayNtlVlm).toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-xs">
+                  ${Number(marketData.ctx.dayNtlVlm).toFixed(8)}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
+
         {/* Funding */}
         <div className="flex flex-col">
-          <span className="text-[12px] text-gray-400 underline decoration-gray-400 underline-offset-4">
-            Funding
-          </span>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="text-[12px] text-gray-400 underline decoration-gray-400 underline-offset-4 cursor-default">
+                  Funding
+                </span>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-[180px]">
+                <p className="text-xs">
+                  The hourly rate at which longs pay shorts (if negative, shorts
+                  pay longs). There are no fees associated with funding, which
+                  is a peer-to-peer transfer between users to push prices
+                  towards the spot price.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           <div className="flex items-center gap-1">
-            <span
-              className={`font-mono text-[13px] min-w-[60px] ${
-                flashStates.funding === "up"
-                  ? "flash-green"
-                  : flashStates.funding === "down"
-                  ? "flash-red"
-                  : marketData.funding >= 0
-                  ? "text-[#50d2c1]"
-                  : "text-[#ED7088]"
-              }`}>
-              {(marketData.ctx.funding * 100).toFixed(4)}%
-            </span>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    className={`font-mono text-[13px] min-w-[60px] ${
+                      flashStates.funding === "up"
+                        ? "flash-green"
+                        : flashStates.funding === "down"
+                        ? "flash-red"
+                        : marketData.funding >= 0
+                        ? "text-[#50d2c1]"
+                        : "text-[#ED7088]"
+                    }`}>
+                    {(marketData.ctx.funding * 100).toFixed(4)}%
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">
+                    {(marketData.ctx.funding * 100).toFixed(8)}%
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
       </div>

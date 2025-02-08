@@ -222,7 +222,9 @@ const TradingForm = ({
       </div>
       <div className="flex justify-between mb-4 text-xs">
         <span className="text-gray-400">Current Position</span>
-        <span className="text-[#50d2c1]">0.00014 BTC</span>
+        <span className="text-[#50d2c1]">
+          0.00014 {`${firstAsset}/${secondAsset}`}
+        </span>
       </div>
 
       {/* Price Input for Limit Orders */}
