@@ -334,7 +334,11 @@ function Chart({ firstAsset, secondAsset, interval, setInterval }) {
   if (isLoading)
     return (
       <div className="h-full flex items-center justify-center w-full flex-col bg-[#041318]">
-        <img src="/logo.svg" alt="logo" className="w-1/6 animate-spin" />
+        <img
+          src="/android-chrome-512x512.png"
+          alt="logo"
+          className="w-1/6 animate-spin"
+        />
       </div>
     );
   if (error)

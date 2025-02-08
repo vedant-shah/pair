@@ -10,8 +10,7 @@ const Navbar = () => {
           {/* Logo */}
           <div className="flex items-center">
             <a href="/" className="flex items-center gap-2">
-              <img src="/logo.svg" alt="Pair-Bot" className="h-6" />
-              <span className="font-medium text-white">Pair-Bot</span>
+              <img src="/no_bg.png" alt="Pair-Bot" className="h-16" />
             </a>
           </div>
 

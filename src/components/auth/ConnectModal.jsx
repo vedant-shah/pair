@@ -94,6 +94,7 @@ const ConnectModal = () => {
     if (ready && authenticated) {
       // checkUser();
       storeAccessToken();
+      console.log("user:", user.wallet.address);
     }
   }, [user]);
 

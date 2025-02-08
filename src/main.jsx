@@ -12,7 +12,7 @@ createRoot(document.getElementById("root")).render(
       appId={import.meta.env.VITE_PRIVY_APP_ID}
       config={{
         // Display email and wallet as login methods
-        loginMethods: ["google", "wallet"],
+        loginMethods: ["wallet"],
         // Customize Privy's appearance in your app
         appearance: {
           theme: "dark",

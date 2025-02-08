@@ -65,7 +65,11 @@ const MobileNavigation = ({ activeTab, onTabChange }) => (
 // Loading component
 const LoadingSpinner = () => (
   <div className="min-h-screen bg-[#041318] flex items-center justify-center">
-    <img src="/logo.svg" alt="Loading" className="w-16 h-16 animate-spin" />
+    <img
+      src="/android-chrome-512x512.png"
+      alt="Loading"
+      className="w-16 h-16 animate-spin"
+    />
   </div>
 );
 
@@ -232,7 +236,11 @@ const Root = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#041318] flex items-center justify-center">
-        <img src="/logo.svg" alt="Loading" className="w-16 h-16 animate-spin" />
+        <img
+          src="/android-chrome-512x512.png"
+          alt="Loading"
+          className="w-16 h-16 animate-spin"
+        />
       </div>
     );
   }

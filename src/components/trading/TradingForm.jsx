@@ -5,7 +5,6 @@ import { Slider } from "../ui/slider";
 import { Checkbox } from "../ui/checkbox";
 import LeverageModal from "./LeverageModal";
 import { usePrivy } from "@privy-io/react-auth";
-import { ethers } from "ethers";
 import SlippageModal from "./SlippageModal";
 import { formatNumber } from "@/lib/utils";
 
