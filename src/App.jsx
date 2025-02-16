@@ -18,7 +18,7 @@ const UserPanel = lazy(() => import("./components/trading/UserPanel"));
 const RestrictedAccess = lazy(() =>
   import("./components/pages/RestrictedAccess")
 );
-
+const ApiWallet = lazy(() => import("./components/pages/ApiWallet"));
 // Tab configuration
 const TABS = [
   { id: "chart", label: "Chart" },
@@ -149,10 +149,9 @@ const TradingView = () => {
   const { data: meta } = useQuery({
     queryKey: ["meta"],
     queryFn: () =>
-      fetch("https://api.hyperliquid.xyz/info", {
-        method: "POST",
+      fetch("https://dev.peripair.trade/meta", {
+        method: "GET",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "meta" }),
       }).then((res) => res.json()),
     refetchInterval: 1000 * 60 * 60 * 24,
     refetchOnMount: false,
@@ -286,6 +285,14 @@ const Root = () => {
         element={
           <Suspense fallback={<LoadingSpinner />}>
             <RestrictedAccess />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/API"
+        element={
+          <Suspense fallback={<LoadingSpinner />}>
+            <ApiWallet />
           </Suspense>
         }
       />

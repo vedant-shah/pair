@@ -12,14 +12,142 @@ import { toast } from "sonner";
 import { Button } from "../ui/button";
 import { usePrivy } from "@privy-io/react-auth";
 
+const AUTH_STORAGE_KEY = "peri-auth-data";
+
 const ConnectModal = () => {
   const { ready, authenticated, login, user, logout, getAccessToken } =
     usePrivy();
   const [showNewUserModal, setShowNewUserModal] = useState(false);
   const [privateKey, setPrivateKey] = useState("");
   const [referer, setReferer] = useState("");
-  const [modalType, setModalType] = useState(""); // "privateKey", "referer", or "both"
+  const [modalType, setModalType] = useState("");
   const disableLogin = !ready || (ready && authenticated);
+
+  const clearStoredAuthData = () => {
+    sessionStorage.removeItem(AUTH_STORAGE_KEY);
+    document.cookie = "privy-accessToken=; max-age=0; path=/";
+    sessionStorage.removeItem("peri-userData");
+  };
+
+  const getStoredAuthData = () => {
+    try {
+      const authData = sessionStorage.getItem(AUTH_STORAGE_KEY);
+      return authData ? JSON.parse(authData) : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const storeAuthData = (data) => {
+    sessionStorage.setItem(
+      AUTH_STORAGE_KEY,
+      JSON.stringify({
+        ...data,
+        timestamp: Date.now(),
+      })
+    );
+  };
+
+  const isValidStoredAuth = (authData) => {
+    if (!authData) return false;
+    // Check if auth data is less than 24 hours old
+    const isExpired = Date.now() - authData.timestamp > 24 * 60 * 60 * 1000;
+    return !isExpired;
+  };
+
+  const storeAccessToken = async () => {
+    try {
+      const accessToken = await getAccessToken();
+      console.log("accessToken:", accessToken);
+      if (accessToken) {
+        // Set secure cookie with 1 hour expiration
+        document.cookie = `privy-accessToken=${accessToken}; max-age=3600; path=/; secure; samesite=strict`;
+        return accessToken;
+      } else {
+        throw new Error("Failed to get access token");
+      }
+    } catch (error) {
+      console.error("Error storing access token:", error);
+      // Clear the cookie if there's an error
+      document.cookie = "privy-accessToken=; max-age=0; path=/";
+      throw error;
+    }
+  };
+
+  // Helper function to get access token from cookie
+  const getStoredAccessToken = () => {
+    const cookies = document.cookie.split(";");
+    const tokenCookie = cookies.find((cookie) =>
+      cookie.trim().startsWith("privy-accessToken=")
+    );
+    return tokenCookie ? tokenCookie.split("=")[1].trim() : null;
+  };
+
+  const checkUser = async (retryCount = 0) => {
+    if (!user) return null;
+
+    try {
+      const storedAuth = getStoredAuthData();
+      if (isValidStoredAuth(storedAuth)) {
+        return storedAuth;
+      }
+
+      const bearerToken = getStoredAccessToken();
+      if (!bearerToken) {
+        await storeAccessToken();
+      }
+
+      const requestOptions = {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getStoredAccessToken()}`,
+          Accept: "*/*",
+        },
+        body: JSON.stringify({ address: user.wallet.address }),
+      };
+
+      const response = await fetch(
+        "https://dev.peripair.trade/v1/user",
+        requestOptions
+      );
+
+      if (response.status === 511 || response.status === 401) {
+        if (retryCount < 3) {
+          clearStoredAuthData();
+          await storeAccessToken();
+          return checkUser(retryCount + 1);
+        } else {
+          throw new Error("Failed to authenticate after multiple attempts");
+        }
+      }
+
+      const data = await response.json();
+      if (!data) {
+        toast.error("Authentication Failed");
+        return null;
+      }
+
+      sessionStorage.setItem("peri-userData", JSON.stringify(data));
+      storeAuthData(data);
+      toast.success("Successfully Authenticated");
+      return data;
+    } catch (error) {
+      console.error("Error checking user:", error);
+      toast.error(error.message || "Failed to Authenticate");
+      return null;
+    }
+  };
+
+  const handleLogout = async () => {
+    clearStoredAuthData();
+    document.cookie =
+      "privy-accessToken=; max-age=0; path=/; secure; samesite=strict";
+    await logout();
+    toast.success("Logged out successfully", {
+      duration: 3000,
+    });
+  };
 
   const saveUserData = async () => {
     if (modalType === "privateKey" || modalType === "both") {
@@ -30,15 +158,27 @@ const ConnectModal = () => {
     }
 
     try {
+      const accessToken = await getAccessToken();
       const userData = {
-        address: sessionStorage.getItem("peri-userData")?.address,
+        address: user?.wallet?.address,
         ...(privateKey && { private_key: privateKey }),
         ...(referer.trim() !== "" && { referer: referer }),
       };
 
-      console.log(userData);
+      const response = await fetch("https://dev.peripair.trade/v1/user", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(userData),
+      });
 
-      //call the create user function
+      if (!response.ok) throw new Error("Failed to save user data");
+
+      const data = await response.json();
+      storeAuthData(data);
+      sessionStorage.setItem("peri-userData", JSON.stringify(data));
 
       toast.success("Data saved successfully");
       setShowNewUserModal(false);
@@ -46,57 +186,28 @@ const ConnectModal = () => {
       setReferer("");
       setModalType("");
     } catch (error) {
+      console.error("Error saving user data:", error);
       toast.error("Failed to save data");
-      console.error(error);
-    }
-  };
-
-  const checkUser = async () => {
-    if (!user) return;
-
-    try {
-      //check if the user is in the database
-      const data = undefined;
-
-      if (!data) {
-        // User not found in database
-        if (user.wallet) {
-          // User has a wallet, need both private key and referer
-          setModalType("both");
-        } else {
-          // User doesn't have a wallet, only need referer
-          setModalType("referer");
-        }
-
-        //store the user data in the session storage after creating the user.
-
-        setShowNewUserModal(true);
-      } else {
-        // User found, store in session storage
-        sessionStorage.setItem("peri-userData", JSON.stringify(data));
-      }
-    } catch (error) {
-      console.error("Error checking user:", error);
-    }
-  };
-
-  const storeAccessToken = async () => {
-    const accessToken = await getAccessToken();
-    console.log("accessToken:", accessToken);
-    if (accessToken) {
-      sessionStorage.setItem("privy-accessToken", accessToken);
-    } else {
-      sessionStorage.removeItem("privy-accessToken");
     }
   };
 
   useEffect(() => {
-    if (ready && authenticated) {
-      // checkUser();
-      storeAccessToken();
-      console.log("user:", user.wallet.address);
-    }
-  }, [user]);
+    const initAuth = async () => {
+      if (ready && authenticated && user) {
+        const storedAuth = getStoredAuthData();
+        if (!storedAuth || !isValidStoredAuth(storedAuth)) {
+          await storeAccessToken();
+          await checkUser();
+        }
+      } else if (ready && !authenticated) {
+        sessionStorage.removeItem("privy-accessToken");
+        sessionStorage.removeItem("peri-userData");
+        sessionStorage.removeItem("peri-auth-data");
+      }
+    };
+
+    initAuth();
+  }, [ready, authenticated, user?.wallet?.address]);
 
   return (
     <>
@@ -149,12 +260,7 @@ const ConnectModal = () => {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="cursor-pointer text-[#50d2c1]"
-              onClick={() => {
-                logout();
-                toast.success("Logged out successfully", {
-                  duration: 3000,
-                });
-              }}>
+              onClick={handleLogout}>
               Disconnect
             </DropdownMenuItem>
           </DropdownMenuContent>

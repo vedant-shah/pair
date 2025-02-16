@@ -31,33 +31,13 @@ const ChartHeader = ({
   const [openFirst, setOpenFirst] = React.useState(false);
   const [openSecond, setOpenSecond] = React.useState(false);
   const [rotationDegrees, setRotationDegrees] = useState(0);
-  let assetOneValues = {
-    funding: 0.0,
-    prevDayPx: 1,
-    premium: 0.0,
-    dayNtlVlm: 0.0,
-    oraclePx: 1.0,
-    markPx: 1,
-    midPx: 0.0,
-  };
-  let assetTwoValues = {
-    funding: 0.0,
-    prevDayPx: 1,
-    premium: 0.0,
-    dayNtlVlm: 0.0,
-    oraclePx: 1.0,
-    markPx: 1,
-    midPx: 0.0,
-  };
+
   const [marketData, setMarketData] = useState({
-    coin: "SOL",
-    ctx: {
-      funding: 0.0,
-      prevDayPx: 0.0,
-      oraclePx: 0.0,
-      markPx: 0.0,
-      dayNtlVlm: 0.0,
-    },
+    mark_price: 0,
+    prev_day_price: 0,
+    funding: 0,
+    day_volume: 0,
+    oracle_price: 0,
   });
 
   const [flashStates, setFlashStates] = useState({
@@ -73,80 +53,38 @@ const ChartHeader = ({
   };
 
   useEffect(() => {
-    const ws = new WebSocket("wss://api.hyperliquid.xyz/ws");
+    const ws = new WebSocket("wss://peri-backend.suryansh.xyz/active_ctx");
 
     ws.onopen = () => {
-      ws.send(
-        JSON.stringify({
-          method: "subscribe",
-          subscription: { type: "activeAssetCtx", coin: firstAsset },
-        })
-      );
-      ws.send(
-        JSON.stringify({
-          method: "subscribe",
-          subscription: { type: "activeAssetCtx", coin: secondAsset },
-        })
-      );
+      ws.send(JSON.stringify("clear"));
+      ws.send(JSON.stringify([firstAsset + "/" + secondAsset]));
     };
 
     ws.onmessage = (event) => {
       const message = JSON.parse(event.data);
+      const data = Object.values(message)[0];
+      if (data)
+        setMarketData((prev) => {
+          const newFlashStates = {
+            mark: data.mark_price >= prev.mark_price ? "up" : "down",
+            change24h: data.mark_price > data.prev_day_price ? "up" : "down",
+          };
+          setFlashStates(newFlashStates);
 
-      if (message.channel !== "activeAssetCtx") return;
+          setTimeout(() => {
+            setFlashStates({
+              mark: null,
+              change24h: null,
+            });
+          }, 1000);
 
-      const updateAssetValues = (asset, values) => {
-        if (message.data.coin === asset) {
-          return message.data.ctx;
-        }
-        return values;
-      };
-
-      assetOneValues = updateAssetValues(firstAsset, assetOneValues);
-      assetTwoValues = updateAssetValues(secondAsset, assetTwoValues);
-
-      if (!assetOneValues || !assetTwoValues) return;
-
-      const pairAssetValues = {
-        markPx: Number(assetOneValues.markPx) / Number(assetTwoValues.markPx),
-        prevDayPx:
-          Number(assetOneValues.prevDayPx) / Number(assetTwoValues.prevDayPx),
-        funding:
-          Number(assetOneValues.funding) - Number(assetTwoValues.funding),
-        dayNtlVlm:
-          Number(assetOneValues.dayNtlVlm) + Number(assetTwoValues.dayNtlVlm),
-        oraclePx:
-          Number(assetOneValues.oraclePx) / Number(assetTwoValues.oraclePx),
-      };
-
-      setMarketData((prev) => {
-        const newFlashStates = {
-          mark: pairAssetValues.markPx >= prev.ctx.markPx ? "up" : "down",
-          change24h:
-            pairAssetValues.markPx > pairAssetValues.prevDayPx ? "up" : "down",
-        };
-        setFlashStates(newFlashStates);
-
-        setTimeout(() => {
-          setFlashStates({
-            mark: null,
-            change24h: null,
-          });
-        }, 1000);
-
-        return {
-          coin: message.data.coin,
-          ctx: pairAssetValues,
-        };
-      });
+          return data;
+        });
     };
 
     return () => ws.close();
   }, [firstAsset, secondAsset]);
 
-  useEffect(() => {
-    console.log(marketData);
-  }, [marketData]);
   return (
     <div className="flex items-center gap-6 px-4 py-2 bg-[#041318] border-b border-gray-800">
       {/* Coin Pair Selector */}
@@ -183,20 +121,22 @@ const ChartHeader = ({
               <CommandList>
                 <CommandEmpty>No Coin found.</CommandEmpty>
                 <CommandGroup>
-                  {allCoins?.map((coin) => (
-                    <CommandItem
-                      key={coin}
-                      value={coin}
-                      className="text-white"
-                      onSelect={(currentValue) => {
-                        setFirstAsset(
-                          currentValue === firstAsset ? "" : currentValue
-                        );
-                        setOpenFirst(false);
-                      }}>
-                      {coin}
-                    </CommandItem>
-                  ))}
+                  {allCoins
+                    ?.filter((coin) => coin !== secondAsset)
+                    .map((coin) => (
+                      <CommandItem
+                        key={coin}
+                        value={coin}
+                        className="text-white"
+                        onSelect={(currentValue) => {
+                          setFirstAsset(
+                            currentValue === firstAsset ? "" : currentValue
+                          );
+                          setOpenFirst(false);
+                        }}>
+                        {coin}
+                      </CommandItem>
+                    ))}
                 </CommandGroup>
               </CommandList>
             </Command>
@@ -242,20 +182,22 @@ const ChartHeader = ({
               <CommandList>
                 <CommandEmpty>No Coin found.</CommandEmpty>
                 <CommandGroup>
-                  {allCoins?.map((coin) => (
-                    <CommandItem
-                      key={coin}
-                      value={coin}
-                      className="text-white"
-                      onSelect={(currentValue) => {
-                        setSecondAsset(
-                          currentValue === secondAsset ? "" : currentValue
-                        );
-                        setOpenSecond(false);
-                      }}>
-                      {coin}
-                    </CommandItem>
-                  ))}
+                  {allCoins
+                    ?.filter((coin) => coin !== firstAsset)
+                    .map((coin) => (
+                      <CommandItem
+                        key={coin}
+                        value={coin}
+                        className="text-white"
+                        onSelect={(currentValue) => {
+                          setSecondAsset(
+                            currentValue === secondAsset ? "" : currentValue
+                          );
+                          setOpenSecond(false);
+                        }}>
+                        {coin}
+                      </CommandItem>
+                    ))}
                 </CommandGroup>
               </CommandList>
             </Command>
@@ -292,12 +234,12 @@ const ChartHeader = ({
                       ? "flash-red"
                       : "text-white"
                   }`}>
-                  {Number(marketData.ctx.markPx).toFixed(2)}
+                  {Number(marketData.mark_price).toFixed(2)}
                 </span>
               </TooltipTrigger>
               <TooltipContent>
                 <p className="text-xs">
-                  {Number(marketData.ctx.markPx).toFixed(8)}
+                  {Number(marketData.mark_price).toFixed(8)}
                 </p>
               </TooltipContent>
             </Tooltip>
@@ -325,12 +267,12 @@ const ChartHeader = ({
             <Tooltip>
               <TooltipTrigger asChild>
                 <span className="font-mono text-[13px] text-white">
-                  {Number(marketData.ctx.oraclePx).toFixed(2)}
+                  {Number(marketData.oracle_price).toFixed(2)}
                 </span>
               </TooltipTrigger>
               <TooltipContent>
                 <p className="text-xs">
-                  {Number(marketData.ctx.oraclePx).toFixed(8)}
+                  {Number(marketData.oracle_price).toFixed(8)}
                 </p>
               </TooltipContent>
             </Tooltip>
@@ -348,46 +290,46 @@ const ChartHeader = ({
                 <TooltipTrigger asChild>
                   <span
                     className={`font-mono text-[13px] ${
-                      marketData.ctx.markPx >= marketData.ctx.prevDayPx
+                      marketData.mark_price >= marketData.prev_day_price
                         ? "text-[#50d2c1]"
                         : "text-[#ED7088]"
                     }`}>
-                    {(Number(marketData.ctx.markPx) -
-                      Number(marketData.ctx.prevDayPx) >=
+                    {(Number(marketData.mark_price) -
+                      Number(marketData.prev_day_price) >=
                     0
                       ? "+"
                       : "") +
                       (
-                        Number(marketData.ctx.markPx) -
-                        Number(marketData.ctx.prevDayPx)
+                        Number(marketData.mark_price) -
+                        Number(marketData.prev_day_price)
                       ).toFixed(2) +
                       " / " +
                       (
-                        ((Number(marketData.ctx.markPx) -
-                          Number(marketData.ctx.prevDayPx)) *
+                        ((Number(marketData.mark_price) -
+                          Number(marketData.prev_day_price)) *
                           100) /
-                        Number(marketData.ctx.prevDayPx)
+                        Number(marketData.prev_day_price)
                       ).toFixed(2) +
                       "%"}
                   </span>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p className="text-xs">
-                    {(Number(marketData.ctx.markPx) -
-                      Number(marketData.ctx.prevDayPx) >=
+                    {(Number(marketData.mark_price) -
+                      Number(marketData.prev_day_price) >=
                     0
                       ? "+"
                       : "") +
                       (
-                        Number(marketData.ctx.markPx) -
-                        Number(marketData.ctx.prevDayPx)
+                        Number(marketData.mark_price) -
+                        Number(marketData.prev_day_price)
                       ).toFixed(8) +
                       " / " +
                       (
-                        ((Number(marketData.ctx.markPx) -
-                          Number(marketData.ctx.prevDayPx)) *
+                        ((Number(marketData.mark_price) -
+                          Number(marketData.prev_day_price)) *
                           100) /
-                        Number(marketData.ctx.prevDayPx)
+                        Number(marketData.prev_day_price)
                       ).toFixed(8) +
                       "%"}
                   </p>
@@ -407,7 +349,7 @@ const ChartHeader = ({
               <TooltipTrigger asChild>
                 <span className="font-mono text-[13px] text-white min-w-[100px]">
                   $
-                  {Number(marketData.ctx.dayNtlVlm).toLocaleString("en-US", {
+                  {Number(marketData.day_volume).toLocaleString("en-US", {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
                   })}
@@ -415,7 +357,7 @@ const ChartHeader = ({
               </TooltipTrigger>
               <TooltipContent>
                 <p className="text-xs">
-                  ${Number(marketData.ctx.dayNtlVlm).toFixed(8)}
+                  ${Number(marketData.day_volume).toFixed(8)}
                 </p>
               </TooltipContent>
             </Tooltip>
@@ -455,12 +397,12 @@ const ChartHeader = ({
                         ? "text-[#50d2c1]"
                         : "text-[#ED7088]"
                     }`}>
-                    {(marketData.ctx.funding * 100).toFixed(4)}%
+                    {(marketData.funding * 100).toFixed(4)}%
                   </span>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p className="text-xs">
-                    {(marketData.ctx.funding * 100).toFixed(8)}%
+                    {(marketData.funding * 100).toFixed(8)}%
                   </p>
                 </TooltipContent>
               </Tooltip>

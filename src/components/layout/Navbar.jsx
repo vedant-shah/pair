@@ -1,22 +1,33 @@
 import React from "react";
 import ConnectModal from "../auth/ConnectModal";
 import { toast } from "sonner";
+import { Link, useLocation } from "react-router-dom";
 
 const Navbar = () => {
+  const location = useLocation();
+
   return (
     <nav className="bg-[#041318] border-b border-gray-800">
       <div className="px-4 mx-auto">
         <div className="flex items-center justify-between h-14">
-          {/* Logo */}
-          <div className="flex items-center">
-            <a href="/" className="flex items-center gap-2">
+          {/* Logo and Main Navigation */}
+          <div className="flex items-center gap-6">
+            <Link to="/" className="flex items-center gap-2">
               <img src="/no_bg.png" alt="Pair-Bot" className="h-16" />
-            </a>
+            </Link>
+            <Link
+              to="/API"
+              className={`text-sm ${
+                location.pathname === "/API"
+                  ? "text-[#50d2c1]"
+                  : "text-gray-400 hover:text-white"
+              }`}>
+              API Keys
+            </Link>
           </div>
 
           {/* Right Section */}
           <div className="flex items-center gap-4">
-            <ConnectModal />
             <button
               className="text-gray-400 hover:text-white"
               onClick={() => {
@@ -55,6 +66,9 @@ const Navbar = () => {
                 />
               </svg>
             </button>
+            <div className="text-white">
+              <ConnectModal />
+            </div>
           </div>
         </div>
       </div>

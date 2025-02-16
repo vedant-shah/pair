@@ -76,8 +76,24 @@ function Chart({ firstAsset, secondAsset, interval, setInterval }) {
     error,
   } = useQuery({
     queryKey: ["candles", firstAsset, secondAsset, interval],
-    queryFn: () => fetchHistoricalCandles(Date.now(), 200), // Fetch last 200 candles
-    refetchInterval: 1000 * 60 * 30, // 30 minutes
+    queryFn: async () => {
+      // Calculate a stable timestamp for the current interval
+      const now = Date.now();
+      const intervalInMs = {
+        "5m": 5 * 60 * 1000,
+        "15m": 15 * 60 * 1000,
+        "1h": 60 * 60 * 1000,
+        "4h": 4 * 60 * 60 * 1000,
+        "1d": 24 * 60 * 60 * 1000,
+        "1w": 7 * 24 * 60 * 60 * 1000,
+        "1M": 30 * 24 * 60 * 60 * 1000,
+      };
+
+      // Round down to the nearest interval
+      const roundedTimestamp =
+        Math.floor(now / intervalInMs[interval]) * intervalInMs[interval];
+      return fetchHistoricalCandles(roundedTimestamp, 200);
+    },
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
@@ -211,6 +227,9 @@ function Chart({ firstAsset, secondAsset, interval, setInterval }) {
       wickDownColor: "#ED7088",
     });
 
+    candlestickSeries.applyOptions({
+      priceFormat: { type: "price", precision: 8, minMove: 0.00000001 },
+    });
     candlestickSeries.priceScale().applyOptions({
       scaleMargins: { top: 0.2, bottom: 0.3 },
     });
