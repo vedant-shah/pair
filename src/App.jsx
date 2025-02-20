@@ -234,7 +234,6 @@ const Root = () => {
       fetch("https://ipapi.co/json/")
         .then((response) => response.json())
         .then((data) => {
-          console.log("Your IP address is:", data);
           return data;
         })
         .catch((error) => {

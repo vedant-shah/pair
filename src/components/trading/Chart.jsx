@@ -60,6 +60,7 @@ function Chart({ firstAsset, secondAsset, interval, setInterval }) {
             h: candle[2],
             l: candle[3],
             c: candle[4],
+            v: candle[5],
           };
         })
         .filter(Boolean); // Remove any null values
@@ -110,7 +111,6 @@ function Chart({ firstAsset, secondAsset, interval, setInterval }) {
       const ws = new WebSocket("wss://api.hyperliquid.xyz/ws");
 
       ws.onopen = () => {
-        console.log("connected");
         ws.send(
           JSON.stringify({
             method: "subscribe",
@@ -168,19 +168,18 @@ function Chart({ firstAsset, secondAsset, interval, setInterval }) {
                 Number(latestSecondAssetCandle.c),
             };
 
-            // const volumeData = {
-            //   time: Math.floor(latestFirstAssetCandle.t / 1000),
-            //   value:
-            //     Number(latestFirstAssetCandle.v) +
-            //     Number(latestSecondAssetCandle.v),
-            //   color:
-            //     combinedCandle.close > combinedCandle.open
-            //       ? "#174d4a"
-            //       : "#833640",
-            // };
-
+            const volumeData = {
+              time: Math.floor(latestFirstAssetCandle.t / 1000),
+              value:
+                Number(latestFirstAssetCandle.v) +
+                Number(latestSecondAssetCandle.v),
+              color:
+                combinedCandle.close > combinedCandle.open
+                  ? "#174d4a"
+                  : "#833640",
+            };
             candlestickSeries.update(combinedCandle);
-            // volumeSeries.update(volumeData);
+            volumeSeries.update(volumeData);
 
             // Reset the latest candles after updating
             latestFirstAssetCandle = null;
@@ -234,15 +233,15 @@ function Chart({ firstAsset, secondAsset, interval, setInterval }) {
       scaleMargins: { top: 0.2, bottom: 0.3 },
     });
 
-    // const volumeSeries = chart.addHistogramSeries({
-    //   color: "#26a69a",
-    //   priceFormat: { type: "volume" },
-    //   priceScaleId: "",
-    // });
+    const volumeSeries = chart.addHistogramSeries({
+      color: "#26a69a",
+      priceFormat: { type: "volume" },
+      priceScaleId: "",
+    });
 
-    // volumeSeries.priceScale().applyOptions({
-    //   scaleMargins: { top: 0.8, bottom: 0 },
-    // });
+    volumeSeries.priceScale().applyOptions({
+      scaleMargins: { top: 0.8, bottom: 0 },
+    });
 
     if (historicalCandleData) {
       const formattedData = historicalCandleData.map((candle) => ({
@@ -253,14 +252,14 @@ function Chart({ firstAsset, secondAsset, interval, setInterval }) {
         close: Number(candle.c),
       }));
 
-      // const volumeData = historicalCandleData.map((candle) => ({
-      //   time: candle.t / 1000,
-      //   value: Number(candle.v),
-      //   color: Number(candle.c) > Number(candle.o) ? "#174d4a" : "#833640",
-      // }));
+      const volumeData = historicalCandleData.map((candle) => ({
+        time: candle.t / 1000,
+        value: Number(candle.v),
+        color: Number(candle.c) > Number(candle.o) ? "#174d4a" : "#833640",
+      }));
 
       candlestickSeries.setData(formattedData);
-      // volumeSeries.setData(volumeData);
+      volumeSeries.setData(volumeData);
 
       chart.timeScale().setVisibleLogicalRange({
         from: formattedData.length - 30,
@@ -338,7 +337,7 @@ function Chart({ firstAsset, secondAsset, interval, setInterval }) {
       };
 
       window.addEventListener("resize", handleResize);
-      testWebSocket(candlestickSeries);
+      testWebSocket(candlestickSeries, volumeSeries);
 
       return () => {
         window.removeEventListener("resize", handleResize);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import BackLines from "../../../public/back_lines.svg";
-import { usePrivy } from "@privy-io/react-auth";
+import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ethers } from "ethers";
@@ -31,6 +31,7 @@ function ApiWallet() {
   const [showInputPassword, setShowInputPassword] = useState(false);
   const [visiblePasswords, setVisiblePasswords] = useState({});
   const { ready, authenticated, user, getAccessToken } = usePrivy();
+  const { wallets } = useWallets();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -38,10 +39,31 @@ function ApiWallet() {
     if (ready && !authenticated) {
       navigate("/");
     }
-  }, [ready, authenticated, navigate]);
-
+  }, [ready, authenticated]);
+  // const getProvider = async (wallets) => {
+  //   const providers = await wallets[0].getEthereumProvider();
+  //   const provider = new ethers.BrowserProvider(providers.walletProvider);
+  //   const signer = await provider.getSigner();
+  //   const signature = await signer.signMessage(
+  //     JSON.stringify(
+  //       {
+  //         name: formData.walletName,
+  //         api_key: formData.privateKey,
+  //         nonce: Date.now(),
+  //       },
+  //       null,
+  //       "\t"
+  //     )
+  //   );
+  // };
+  // useEffect(() => {
+  //   if (wallets.length > 0) {
+  //     console.log("wallets:", wallets);
+  //     getProvider(wallets);
+  //   }
+  // }, [wallets]);
   // Query for fetching API keys
-  const { data: wallets = [], isLoading } = useQuery({
+  const { data: walletsData = [], isLoading } = useQuery({
     queryKey: ["api-keys", user?.wallet?.address],
     queryFn: async () => {
       if (!authenticated || !user?.wallet?.address) return [];
@@ -72,25 +94,28 @@ function ApiWallet() {
       return;
     }
 
-    if (!window.ethereum) {
-      return;
-    }
+    // if (!window.ethereum) {
+    //   return;
+    // }
+    // let providerToUse = window.ethereum;
 
-    await window.ethereum.send("eth_requestAccounts");
-    const provider = new ethers.BrowserProvider(window.ethereum);
-    const signer = await provider.getSigner();
-    const signature = await signer.signMessage(
-      JSON.stringify(
-        {
-          name: formData.walletName,
-          api_key: formData.privateKey,
-          nonce: Date.now(),
-        },
-        null,
-        "\t"
-      )
-    );
-    const address = await signer.getAddress();
+    // console.log("providerToUse:", providerToUse);
+
+    // await window.ethereum.send("eth_requestAccounts");
+    // const provider = new ethers.BrowserProvider(window.ethereum);
+    // const signer = await provider.getSigner();
+    // const signature = await signer.signMessage(
+    //   JSON.stringify(
+    //     {
+    //       name: formData.walletName,
+    //       api_key: formData.privateKey,
+    //       nonce: Date.now(),
+    //     },
+    //     null,
+    //     "\t"
+    //   )
+    // );
+    // const address = await signer.getAddress();
 
     // return;
     setIsSubmitting(true);
@@ -179,11 +204,7 @@ function ApiWallet() {
     }
   };
 
-  const handleCopyPrivateKey = (walletId) => {
-    navigator.clipboard.writeText(walletId).then(() => {
-      toast.success("Wallet ID copied to clipboard");
-    });
-  };
+  // Get the provider for the embeded wallet, we will use in the next section
 
   if (isLoading) {
     return (
@@ -305,7 +326,7 @@ function ApiWallet() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {wallets.map((wallet) => (
+                    {walletsData.map((wallet) => (
                       <TableRow
                         key={wallet.id}
                         className="hover:bg-transparent">
