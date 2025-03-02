@@ -301,19 +301,19 @@ function Chart({ firstAsset, secondAsset, interval, setInterval }) {
                       close: Number(candle.c),
                     }));
 
-                  // const volumeData = historicalData
-                  //   .slice(0, -1)
-                  //   .map((candle) => ({
-                  //     time: candle.t / 1000,
-                  //     value: Number(candle.v),
-                  //     color:
-                  //       Number(candle.c) > Number(candle.o)
-                  //         ? "#174d4a"
-                  //         : "#833640",
-                  //   }));
+                  const volumeData = historicalData
+                    .slice(0, -1)
+                    .map((candle) => ({
+                      time: candle.t / 1000,
+                      value: Number(candle.v),
+                      color:
+                        Number(candle.c) > Number(candle.o)
+                          ? "#174d4a"
+                          : "#833640",
+                    }));
 
                   candlestickSeries.setData([...formattedData, ...data]);
-                  // volumeSeries.setData([...volumeData, ...volumeSeries.data()]);
+                  volumeSeries.setData([...volumeData, ...volumeSeries.data()]);
                 }
               })
               .catch((error) => {

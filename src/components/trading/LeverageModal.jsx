@@ -2,6 +2,9 @@ import React, { useMemo, useCallback, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Slider } from "../ui/slider";
 import { toast } from "sonner";
+import { usePrivy } from "@privy-io/react-auth";
+
+const LEVERAGE_STORAGE_KEY = "peri-leverage-values";
 
 const LeverageModal = React.memo(
   ({
@@ -14,6 +17,48 @@ const LeverageModal = React.memo(
     secondAsset,
   }) => {
     const prevOpenRef = useRef(open);
+    const { user, authenticated } = usePrivy();
+
+    // Helper functions for localStorage operations
+    const getLeverageFromStorage = useCallback(
+      (asset) => {
+        // Skip storage operations if no user is logged in
+        if (!authenticated || !user?.wallet?.address) return null;
+
+        try {
+          const stored = localStorage.getItem(LEVERAGE_STORAGE_KEY);
+          if (!stored) return null;
+
+          const values = JSON.parse(stored);
+          return values[user.wallet.address]?.[asset] || null;
+        } catch {
+          return null;
+        }
+      },
+      [authenticated, user?.wallet?.address]
+    );
+
+    const saveLeverageToStorage = useCallback(
+      (asset, value) => {
+        // Skip storage operations if no user is logged in
+        if (!authenticated || !user?.wallet?.address) return;
+
+        try {
+          const stored = localStorage.getItem(LEVERAGE_STORAGE_KEY);
+          const values = stored ? JSON.parse(stored) : {};
+
+          values[user.wallet.address] = {
+            ...values[user.wallet.address],
+            [asset]: value,
+          };
+
+          localStorage.setItem(LEVERAGE_STORAGE_KEY, JSON.stringify(values));
+        } catch (error) {
+          console.error("Error saving leverage:", error);
+        }
+      },
+      [authenticated, user?.wallet?.address]
+    );
 
     // Memoize maxLeverage calculation
     const maxLeverage = useMemo(
@@ -24,24 +69,53 @@ const LeverageModal = React.memo(
       [meta, firstAsset, secondAsset]
     );
 
-    // Memoize initial state calculation
-    const initialLeverage = useMemo(
-      () => ({
-        firstAsset: Math.floor(maxLeverage.firstAsset / 2),
-        secondAsset: Math.floor(maxLeverage.secondAsset / 2),
-      }),
-      [maxLeverage]
+    // Get initial leverage values
+    const getInitialLeverage = useCallback(
+      (asset, maxLev) => {
+        // If no user is logged in, just return default value without storing
+        if (!authenticated || !user?.wallet?.address) {
+          return Math.floor(maxLev / 2);
+        }
+
+        const stored = getLeverageFromStorage(asset);
+        if (stored !== null) return stored;
+
+        const defaultValue = Math.floor(maxLev / 2);
+        saveLeverageToStorage(asset, defaultValue);
+        return defaultValue;
+      },
+      [
+        authenticated,
+        user?.wallet?.address,
+        getLeverageFromStorage,
+        saveLeverageToStorage,
+      ]
     );
 
-    const [tempLeverage, setTempLeverage] = React.useState(initialLeverage);
+    // Initialize tempLeverage state
+    const [tempLeverage, setTempLeverage] = React.useState(() => ({
+      firstAsset: getInitialLeverage(firstAsset, maxLeverage.firstAsset),
+      secondAsset: getInitialLeverage(secondAsset, maxLeverage.secondAsset),
+    }));
+
+    // Update values when assets change
+    useEffect(() => {
+      setTempLeverage({
+        firstAsset: getInitialLeverage(firstAsset, maxLeverage.firstAsset),
+        secondAsset: getInitialLeverage(secondAsset, maxLeverage.secondAsset),
+      });
+    }, [firstAsset, secondAsset, maxLeverage, getInitialLeverage]);
 
     // Reset tempLeverage only when modal opens
     useEffect(() => {
       if (open && !prevOpenRef.current) {
-        setTempLeverage(initialLeverage);
+        setTempLeverage({
+          firstAsset: getInitialLeverage(firstAsset, maxLeverage.firstAsset),
+          secondAsset: getInitialLeverage(secondAsset, maxLeverage.secondAsset),
+        });
       }
       prevOpenRef.current = open;
-    }, [open, initialLeverage]);
+    }, [open, firstAsset, secondAsset, maxLeverage, getInitialLeverage]);
 
     // Memoize handlers
     const handleFirstAssetChange = useCallback(([value]) => {
@@ -53,12 +127,27 @@ const LeverageModal = React.memo(
     }, []);
 
     const handleConfirm = useCallback(() => {
+      // Save both leverage values to storage if user is authenticated
+      if (authenticated && user?.wallet?.address) {
+        saveLeverageToStorage(firstAsset, tempLeverage.firstAsset);
+        saveLeverageToStorage(secondAsset, tempLeverage.secondAsset);
+      }
+
       setLeverage(tempLeverage);
       toast.success(
         `Leverage set to ${tempLeverage.firstAsset}x for ${firstAsset} and ${tempLeverage.secondAsset}x for ${secondAsset}`
       );
       onOpenChange(false);
-    }, [tempLeverage, firstAsset, secondAsset, setLeverage, onOpenChange]);
+    }, [
+      authenticated,
+      user?.wallet?.address,
+      tempLeverage,
+      firstAsset,
+      secondAsset,
+      saveLeverageToStorage,
+      setLeverage,
+      onOpenChange,
+    ]);
 
     // Memoize the dialog content to prevent re-renders
     const dialogContent = useMemo(
