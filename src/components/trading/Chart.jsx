@@ -28,14 +28,6 @@ function Chart({ firstAsset, secondAsset, interval, setInterval }) {
       const endTimeMs = Math.floor(endTime);
       const startTimeMs = endTimeMs - numCandles * intervalInMs[interval];
 
-      const baseRequest = {
-        type: "candleSnapshot",
-        req: {
-          endTime: endTimeMs,
-          interval: interval,
-          startTime: startTimeMs,
-        },
-      };
       const body = {
         quote: firstAsset,
         base: secondAsset,
@@ -108,91 +100,50 @@ function Chart({ firstAsset, secondAsset, interval, setInterval }) {
       let latestFirstAssetCandle = null;
       let latestSecondAssetCandle = null;
 
-      const ws = new WebSocket("wss://api.hyperliquid.xyz/ws");
+      // const ws = new WebSocket("wss://api.hyperliquid.xyz/ws");
+
+      const ws = new WebSocket("wss://hldata.suryansh.xyz/latest_candle");
 
       ws.onopen = () => {
+        ws.send("clear");
         ws.send(
-          JSON.stringify({
-            method: "subscribe",
-            subscription: {
-              type: "candle",
-              coin: firstAsset,
+          JSON.stringify([
+            {
+              index: 0,
+              pair: `${firstAsset}/${secondAsset}`,
               interval: interval,
             },
-          })
-        );
-        ws.send(
-          JSON.stringify({
-            method: "subscribe",
-            subscription: {
-              type: "candle",
-              coin: secondAsset,
-              interval: interval,
-            },
-          })
+          ])
         );
       };
 
       ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
-        if (data.channel === "candle") {
-          const candle = data.data;
+        console.log("data", data);
 
-          // Store the latest candle data for each asset
-          if (candle.s === firstAsset) {
-            latestFirstAssetCandle = candle;
-          } else if (candle.s === secondAsset) {
-            latestSecondAssetCandle = candle;
-          }
+        const combinedCandle = {
+          time: Date.parse(data["0"]["data"][0]) / 1000,
+          open: Number(data["0"]["data"][1]),
+          high: Number(data["0"]["data"][2]),
+          low: Number(data["0"]["data"][3]),
+          close: Number(data["0"]["data"][4]),
+        };
 
-          // Only update the chart if we have data for both assets
-          if (
-            latestFirstAssetCandle &&
-            latestSecondAssetCandle &&
-            latestFirstAssetCandle.t === latestSecondAssetCandle.t
-          ) {
-            // Process combined candle data
-            const combinedCandle = {
-              time: Math.floor(latestFirstAssetCandle.t / 1000),
-              open:
-                Number(latestFirstAssetCandle.o) /
-                Number(latestSecondAssetCandle.o),
-              high:
-                Number(latestFirstAssetCandle.h) /
-                Number(latestSecondAssetCandle.h),
-              low:
-                Number(latestFirstAssetCandle.l) /
-                Number(latestSecondAssetCandle.l),
-              close:
-                Number(latestFirstAssetCandle.c) /
-                Number(latestSecondAssetCandle.c),
-            };
-
-            const volumeData = {
-              time: Math.floor(latestFirstAssetCandle.t / 1000),
-              value:
-                Number(latestFirstAssetCandle.v) +
-                Number(latestSecondAssetCandle.v),
-              color:
-                combinedCandle.close > combinedCandle.open
-                  ? "#174d4a"
-                  : "#833640",
-            };
-            candlestickSeries.update(combinedCandle);
-            volumeSeries.update(volumeData);
-
-            // Reset the latest candles after updating
-            latestFirstAssetCandle = null;
-            latestSecondAssetCandle = null;
-          }
-        }
+        const volumeData = {
+          time: Date.parse(data["0"]["data"][0]) / 1000,
+          value: Number(data["0"]["data"][5]),
+          color:
+            combinedCandle.close > combinedCandle.open ? "#174d4a" : "#833640",
+        };
+        candlestickSeries.update(combinedCandle);
+        volumeSeries.update(volumeData);
       };
 
       ws.onerror = (error) => {
         console.error("WebSocket error:", error);
       };
     } catch (error) {
-      console.error("Error connecting to Hyperliquid:", error);
+      console.error("Error connecting Live Candle Data:", error);
     }
   };
 

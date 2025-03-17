@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect, useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
@@ -10,6 +10,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatNumber } from "@/lib/utils";
+import { usePrivy } from "@privy-io/react-auth";
+import { useQuery } from "@tanstack/react-query";
 
 // Static data moved outside component
 const TABS = [
@@ -36,11 +38,11 @@ const PnLCell = React.memo(({ value }) => {
 // Memoized table rows component
 const TableRows = React.memo(({ columns, data }) => {
   return data.map((row) => (
-    <TableRow key={row.coinPair} className="hover:bg-transparent">
+    <TableRow key={Math.random()} className="border-0 hover:bg-transparent">
       {columns.map((column) => (
         <TableCell
           key={column.accessorKey}
-          className="py-2 text-xs text-white border-b border-gray-800">
+          className="pt-1 text-xs text-white ">
           {column.cell ? column.cell(row) : row[column.accessorKey]}
         </TableCell>
       ))}
@@ -52,15 +54,15 @@ const TableRows = React.memo(({ columns, data }) => {
 const DataTable = React.memo(({ columns, data }) => {
   return (
     <div className="w-full">
-      <ScrollArea className="w-full whitespace-nowrap no-scrollbar">
-        <div className="border border-gray-800 rounded-lg w-full min-w-[800px]">
+      <ScrollArea className="w-full pb-4 whitespace-nowrap no-scrollbar">
+        <div className="rounded-lg w-full min-w-[800px]">
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 {columns.map((column) => (
                   <TableHead
                     key={column.accessorKey}
-                    className="text-xs font-medium text-gray-400 bg-[#041318] border-b border-gray-800">
+                    className="text-xs h-4 border-0 font-medium text-gray-400 bg-[#041318] ">
                     {column.header}
                   </TableHead>
                 ))}
@@ -78,12 +80,18 @@ const DataTable = React.memo(({ columns, data }) => {
 });
 
 // Memoized tab content component
-const TabContent = React.memo(({ id, columns, data }) => {
+const TabContent = React.memo(({ id, columns, data, positions }) => {
   switch (id) {
     case "balances":
       return <DataTable columns={columns.balances} data={data.balances} />;
     case "positions":
-      return <DataTable columns={columns.positions} data={data.positions} />;
+      return positions ? (
+        <DataTable columns={columns.positions} data={positions} />
+      ) : (
+        <div className="flex items-center justify-center h-full">
+          <div className="text-gray-400">Loading positions...</div>
+        </div>
+      );
     default:
       return (
         <div className="h-full p-2">
@@ -94,7 +102,36 @@ const TabContent = React.memo(({ id, columns, data }) => {
 });
 
 const UserPanel = () => {
-  // Memoized columns configuration
+  const [prices, setPrices] = useState({});
+
+  useEffect(() => {
+    const ws = new WebSocket("wss://dev.peripair.trade/prices");
+
+    ws.onopen = () => {
+      console.log("Connected to price feed");
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        setPrices((prevPrices) => ({
+          ...prevPrices,
+          ...message,
+        }));
+      } catch (error) {
+        console.error("Error parsing price data:", error);
+      }
+    };
+
+    ws.onerror = (error) => {
+      console.error("WebSocket error:", error);
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, []);
+
   const columns = useMemo(
     () => ({
       balances: [
@@ -125,37 +162,53 @@ const UserPanel = () => {
       ],
       positions: [
         {
-          accessorKey: "coinPair",
-          header: "Coin Pair",
+          accessorKey: "quote",
+          header: "Pair",
+          cell: (row) => `${row.quote}/${row.base}`,
         },
         {
-          accessorKey: "size",
-          header: "Size",
-          cell: (row) => formatNumber(row.size, 4),
+          accessorKey: "resting_usdc_size",
+          header: "Size (USDC)",
+          cell: (row) => formatNumber(row.resting_usdc_size, 2),
         },
         {
-          accessorKey: "positionValue",
-          header: "Position Value",
-          cell: (row) => formatNumber(row.positionValue, 2),
-        },
-        {
-          accessorKey: "entryPrice",
-          header: "Entry Price",
-          cell: (row) => formatNumber(row.entryPrice, 2),
-        },
-        {
-          accessorKey: "markPrice",
+          accessorKey: "mark_price",
           header: "Mark Price",
-          cell: (row) => formatNumber(row.markPrice, 2),
+          cell: (row) => {
+            const price = prices[row.quote] / prices[row.base];
+            return formatNumber(price || 0, 2);
+          },
         },
         {
-          accessorKey: "pnlPercentage",
-          header: "PNL %",
-          cell: (row) => <PnLCell value={parseFloat(row.pnlPercentage)} />,
+          accessorKey: "entry",
+          header: "Entry Price",
+          cell: (row) => formatNumber(row.entry, 2),
+        },
+
+        {
+          accessorKey: "pnl",
+          header: "PnL",
+          cell: (row) => formatNumber(row.pnl, 2),
+        },
+        {
+          accessorKey: "margin",
+          header: "Margin",
+          cell: (row) => formatNumber(row.margin, 2),
+        },
+        {
+          accessorKey: "funding",
+          header: "Funding",
+          cell: (row) => formatNumber(row.funding, 2),
+        },
+        {
+          accessorKey: "tp/sl",
+          header: "TP/SL",
+          cell: (row) =>
+            `${formatNumber(row.tp, 2)}/${formatNumber(row.sl, 2)}`,
         },
       ],
     }),
-    []
+    [prices]
   );
 
   // Sample data (to be replaced with WebSocket data)
@@ -191,11 +244,51 @@ const UserPanel = () => {
     }),
     []
   );
+  const { authenticated, user, getAccessToken } = usePrivy();
+
+  const fetchPositions = async () => {
+    try {
+      let accessToken = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("privy-token="))
+        ?.split("=")[1];
+
+      if (!accessToken) {
+        if (!authenticated || !user?.wallet?.address) return [];
+        accessToken = await getAccessToken();
+        // create and store a cookie with the access token
+        document.cookie = `privy-token=${accessToken}; path=/`;
+      }
+      const response = await fetch(
+        "https://dev.peripair.trade/v1/positions/1",
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error("Error fetching positions:", error);
+      return [];
+    }
+  };
+  const { data: positions, isLoading: positionsLoading } = useQuery({
+    queryKey: ["positions"],
+    queryFn: () => fetchPositions(),
+    refetchInterval: 5000,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    refetchIntervalInBackground: true,
+    refetchOnReconnect: true,
+  });
 
   return (
     <div className="flex flex-col h-full bg-[#041318] rounded-lg overflow-hidden p-2">
       <Tabs defaultValue="positions" className="flex flex-col h-full">
-        <div className="border-b border-gray-800">
+        <div className="">
           <ScrollArea className="w-full">
             <TabsList className="inline-flex h-10 p-0 bg-transparent rounded-none">
               {TABS.map((tab) => (
@@ -216,7 +309,12 @@ const UserPanel = () => {
             key={tab.id}
             value={tab.id}
             className="flex-1 p-2 mt-0 overflow-auto">
-            <TabContent id={tab.id} columns={columns} data={data} />
+            <TabContent
+              id={tab.id}
+              columns={columns}
+              data={data}
+              positions={positions}
+            />
           </TabsContent>
         ))}
       </Tabs>

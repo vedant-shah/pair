@@ -2,13 +2,13 @@ import React, { useState, useEffect } from "react";
 import { Button } from "../ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/tabs";
 import { Slider } from "../ui/slider";
-import { Checkbox } from "../ui/checkbox";
 import LeverageModal from "./LeverageModal";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
 import SlippageModal from "./SlippageModal";
 import { formatNumber } from "@/lib/utils";
 import { ethers } from "ethers";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 
 const LEVERAGE_STORAGE_KEY = "peri-leverage-values";
 
@@ -66,7 +66,6 @@ const TradingForm = ({
   });
 
   const [userData, setUserData] = useState(null);
-
   // Add a ref to track if size is being manually edited
   const [isManualSizeInput, setIsManualSizeInput] = useState(false);
   // Add a timeout ref to handle delay between manual edits
@@ -126,21 +125,19 @@ const TradingForm = ({
     }));
   }, [firstAsset, secondAsset, authenticated, user?.wallet?.address]);
 
+  const [builderApproved, setBuilderApproved] = useState(false);
   // Calculate size based on slider, available funds, and leverage
   useEffect(() => {
     // Skip this effect if manual size input is active
     if (isManualSizeInput) return;
 
     if (formState.webData2?.clearinghouseState?.marginSummary) {
-      const calculatedSize = Number(
-        (
-          ((formState.order.sliderValue / 100) *
-            (availableToTrade *
-              (formState.leverage.firstAsset *
-                formState.leverage.secondAsset))) /
-          (formState.leverage.firstAsset + formState.leverage.secondAsset)
-        ).toFixed(2)
-      );
+      const calculatedSize = (
+        (((2 * formState.order.sliderValue) / 100) *
+          availableToTrade *
+          (formState.leverage.firstAsset * formState.leverage.secondAsset)) /
+        (formState.leverage.firstAsset + formState.leverage.secondAsset)
+      ).toFixed(2);
 
       setFormState((prev) => ({
         ...prev,
@@ -246,27 +243,26 @@ const TradingForm = ({
         toast.error("No wallet found");
         return;
       }
-      console.log("wallets", wallets[0]);
+      // console.log("wallets", wallets[0]);
+      // console.log(" providers:", providers);
+      // console.log(" provider:", provider);
       const providers = await wallets[0].getEthereumProvider();
-      console.log(" providers:", providers);
-
       const provider = new ethers.BrowserProvider(providers.walletProvider);
-      console.log(" provider:", provider);
       const signer = await provider.getSigner();
       const date = Date.now();
       const message = {
         type: "approveBuilderFee",
         hyperliquidChain: "Testnet",
-        signatureChainId: "0xA4B1",
+        signatureChainId: "0x66eee",
         maxFeeRate: "0.1%",
-        builder: "0x4577d927A39Ea40C024AD81c0Ce15959176346C7",
+        builder: "0xB599581FD94D34FcFD7D99566d13eC6b27D9E3b0",
         nonce: date,
       };
 
       const domain = {
         name: "HyperliquidSignTransaction",
         version: "1",
-        chainId: 421614,
+        chainId: "0x66eee",
         verifyingContract: "0x0000000000000000000000000000000000000000",
       };
 
@@ -293,33 +289,27 @@ const TradingForm = ({
         signature: { r, s, v },
       });
 
-      return;
-      const accessToken = await getAccessToken();
       const response = await fetch(
-        "https://dev.peripair.trade/v1/builder_approval",
+        "https://api.hyperliquid-testnet.xyz/exchange",
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
           },
           body: JSON.stringify({
-            signature,
-            message,
+            action: message,
+            nonce: date,
+            signature: { r, s, v },
           }),
         }
       );
 
       const data = await response.json();
+      console.log(" data:", data);
 
-      if (data.success) {
+      if (data.status === "ok") {
         // Update the stored user data with builder approval
-        const storedUserData = JSON.parse(
-          sessionStorage.getItem("peri-userData") || "{}"
-        );
-        storedUserData.builderApproved = true;
-        sessionStorage.setItem("peri-userData", JSON.stringify(storedUserData));
-        setUserData(storedUserData);
+        setBuilderApproved(true);
         toast.success("Trading enabled successfully");
       } else {
         throw new Error("Failed to enable trading");
@@ -426,12 +416,38 @@ const TradingForm = ({
   const handleButtonClick = () => {
     if (!authenticated) return;
 
-    if (!userData?.builderApproved) {
+    if (!builderApproved) {
       handleEnableTrading();
     } else {
       handlePlaceOrder();
     }
   };
+
+  const verifyBuilderApproved = async () => {
+    if (user) {
+      const response = await fetch("https://api.hyperliquid-testnet.xyz/info", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          type: "maxBuilderFee",
+          user: user?.wallet?.address,
+          builder: "0xB599581FD94D34FcFD7D99566d13eC6b27D9E3b0",
+        }),
+      });
+      const data = await response.json();
+      if (data === 100) {
+        setBuilderApproved(true);
+        return;
+      }
+      setBuilderApproved(false);
+    }
+  };
+
+  useEffect(() => {
+    console.log(verifyBuilderApproved());
+  }, [user]);
 
   return (
     <div className="flex flex-col h-full bg-[#041318] p-2 text-xs">
@@ -519,12 +535,6 @@ const TradingForm = ({
             2
           ) || "0.00"}{" "}
           USD
-        </span>
-      </div>
-      <div className="flex justify-between mb-4 text-xs">
-        <span className="text-gray-400">Current Position</span>
-        <span className="text-[#50d2c1]">
-          0.00014 {`${firstAsset}/${secondAsset}`}
         </span>
       </div>
 
@@ -685,22 +695,23 @@ const TradingForm = ({
         {/* Place Order Button */}
         <Button
           onClick={handleButtonClick}
+          size={"sm"}
           disabled={
             !authenticated ||
-            availableToTrade <= 0 ||
-            formState.order.size === "0" ||
-            formState.order.size === "" ||
-            formState.takeProfitStopLoss.takeProfit.price === "" ||
-            formState.takeProfitStopLoss.stopLoss.price === "" ||
-            (formState.order.type === "limit" && formState.order.price === "")
+            (builderApproved &&
+              (availableToTrade <= 0 ||
+                formState.order.size === "0" ||
+                formState.order.size === "" ||
+                (formState.order.type === "limit" &&
+                  formState.order.price === "")))
           }
-          className={`w-full py-6 text-black font-medium text-xs ${
+          className={`w-full mt-2 text-black font-medium text-xs ${
             buyOrSell === "buy"
               ? "bg-[#50d2c1] hover:bg-[#50d2c1]/90"
               : "bg-[#ED7088] hover:bg-[#ED7088]/90"
           }`}>
           {authenticated
-            ? userData?.builderApproved
+            ? builderApproved
               ? "Place Order"
               : "Enable Trading"
             : "Connect Wallet"}
