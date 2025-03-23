@@ -1,4 +1,4 @@
-import React, { useState, lazy, Suspense, useEffect } from "react";
+import React, { useState, lazy, Suspense, useEffect, useRef } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -82,6 +82,7 @@ const ChartView = ({
   setSecondAsset,
   interval,
   setInterval,
+  latestCandle,
 }) => (
   <>
     <Suspense fallback={<LoadingSpinner />}>
@@ -99,6 +100,7 @@ const ChartView = ({
             secondAsset={secondAsset}
             interval={interval}
             setInterval={setInterval}
+            latestCandle={latestCandle}
           />
         </div>
       </div>
@@ -119,6 +121,79 @@ const TradingView = () => {
   const [buyOrSell, setBuyOrSell] = useState("buy");
   const [interval, setInterval] = useState("1h");
   const [activeTab, setActiveTab] = useState("chart");
+  const [latestCandle, setLatestCandle] = useState(null);
+  const wsRef = useRef(null);
+
+  // WebSocket connection for latest candle
+  useEffect(() => {
+    const connectWebSocket = () => {
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.close();
+      }
+
+      const ws = new WebSocket("wss://hldata.suryansh.xyz/latest_candle");
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        console.log("Latest candle WebSocket connected");
+        ws.send("clear");
+        ws.send(
+          JSON.stringify([
+            {
+              index: 0,
+              pair: `${firstAsset}/${secondAsset}`,
+              interval: interval,
+            },
+          ])
+        );
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          const candleData = {
+            candle: {
+              time: Date.parse(data["0"]["data"][0]) / 1000,
+              open: Number(data["0"]["data"][1]),
+              high: Number(data["0"]["data"][2]),
+              low: Number(data["0"]["data"][3]),
+              close: Number(data["0"]["data"][4]),
+            },
+            volume: {
+              time: Date.parse(data["0"]["data"][0]) / 1000,
+              value: Number(data["0"]["data"][5]),
+              color:
+                Number(data["0"]["data"][4]) > Number(data["0"]["data"][1])
+                  ? "#174d4a"
+                  : "#833640",
+            },
+          };
+          setLatestCandle(candleData);
+        } catch (error) {
+          console.error("Error parsing latest candle:", error);
+        }
+      };
+
+      ws.onerror = (error) => {
+        console.error("Latest candle WebSocket error:", error);
+      };
+
+      ws.onclose = () => {
+        console.log(
+          "Latest candle WebSocket closed, attempting to reconnect..."
+        );
+        setTimeout(connectWebSocket, 3000);
+      };
+    };
+
+    connectWebSocket();
+
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+    };
+  }, [firstAsset, secondAsset, interval]);
 
   // Update localStorage when assets change
   useEffect(() => {
@@ -171,6 +246,7 @@ const TradingView = () => {
     setInterval,
     allCoins,
     meta,
+    latestCandle,
   };
 
   return (

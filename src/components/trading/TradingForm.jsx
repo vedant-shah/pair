@@ -47,15 +47,17 @@ const TradingForm = ({
   const [formState, setFormState] = useState({
     order: {
       type: "market",
-      size: "", // Changed from number to empty string
+      size: "",
       sizeUnit: "USD",
       price: "",
       sliderValue: 0,
     },
-    takeProfitStopLoss: {
-      takeProfit: { price: "" },
-      stopLoss: { price: "" },
-    },
+    takeProfitStopLoss: [
+      {
+        takeProfit: { price: "", percentage: "" },
+        stopLoss: { price: "" },
+      },
+    ],
     leverage: {
       firstAsset: getInitialLeverage(firstAsset),
       secondAsset: getInitialLeverage(secondAsset),
@@ -252,8 +254,8 @@ const TradingForm = ({
       const date = Date.now();
       const message = {
         type: "approveBuilderFee",
-        hyperliquidChain: "Testnet",
-        signatureChainId: "0x66eee",
+        hyperliquidChain: "Mainnet",
+        signatureChainId: "0x1",
         maxFeeRate: "0.1%",
         builder: "0xB599581FD94D34FcFD7D99566d13eC6b27D9E3b0",
         nonce: date,
@@ -262,17 +264,11 @@ const TradingForm = ({
       const domain = {
         name: "HyperliquidSignTransaction",
         version: "1",
-        chainId: "0x66eee",
+        chainId: "0x1",
         verifyingContract: "0x0000000000000000000000000000000000000000",
       };
 
       const types = {
-        // EIP712Domain: [
-        //   { name: "name", type: "string" },
-        //   { name: "version", type: "string" },
-        //   { name: "chainId", type: "uint256" },
-        //   { name: "verifyingContract", type: "address" },
-        // ],
         "HyperliquidTransaction:ApproveBuilderFee": [
           { name: "hyperliquidChain", type: "string" },
           { name: "maxFeeRate", type: "string" },
@@ -289,20 +285,17 @@ const TradingForm = ({
         signature: { r, s, v },
       });
 
-      const response = await fetch(
-        "https://api.hyperliquid-testnet.xyz/exchange",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            action: message,
-            nonce: date,
-            signature: { r, s, v },
-          }),
-        }
-      );
+      const response = await fetch("https://api.hyperliquid.xyz/exchange", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: message,
+          nonce: date,
+          signature: { r, s, v },
+        }),
+      });
 
       const data = await response.json();
       console.log(" data:", data);
@@ -325,91 +318,89 @@ const TradingForm = ({
     const accessToken = cookies
       .find((cookie) => cookie.trim().startsWith("privy-token="))
       ?.split("=")[1];
-    if (formState.order.type === "market") {
-      // console.log(formState);
-      try {
-        const order = await fetch("https://dev.peripair.trade/v1/market", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
-            quote: firstAsset,
-            base: secondAsset,
-            restingUsdcSize: Number(formState.order.size),
-            slippage: Number(formState.slippage),
-            tp: Number(formState.takeProfitStopLoss.takeProfit.price),
-            sl: Number(formState.takeProfitStopLoss.stopLoss.price),
-            quoteLeverage: Number(formState.leverage.firstAsset),
-            baseLeverage: Number(formState.leverage.secondAsset),
-          }),
-        });
-        if (!order.ok) {
-          throw new Error("Failed to place order");
-        }
-        toast.success("Order placed successfully");
-        // Reset form state after successful order
-        setFormState((prev) => ({
-          ...prev,
-          order: {
-            ...prev.order,
-            size: "",
-            sliderValue: 0,
-          },
-          takeProfitStopLoss: {
-            takeProfit: { price: "" },
+
+    // Validate TP/SL entries
+    const validTpEntries = formState.takeProfitStopLoss.filter(
+      (entry) =>
+        entry.takeProfit.price &&
+        entry.takeProfit.percentage &&
+        entry.stopLoss.price
+    );
+
+    if (validTpEntries.length === 0) {
+      toast.error("At least one complete set of TP/SL is required");
+      return;
+    }
+
+    // Calculate total TP percentage
+    const totalTpPercentage = validTpEntries.reduce(
+      (sum, entry) => sum + Number(entry.takeProfit.percentage),
+      0
+    );
+
+    if (totalTpPercentage > 100) {
+      toast.error("Total take profit percentages cannot exceed 100%");
+      return;
+    }
+
+    const orderPayload = {
+      direction: buyOrSell === "buy" ? "long" : "short",
+      quote: firstAsset,
+      base: secondAsset,
+      restingUsdcSize: Number(formState.order.size),
+      slippage: Number(formState.slippage),
+      tp: formState.takeProfitStopLoss
+        .filter(
+          (entry) => entry.takeProfit.price && entry.takeProfit.percentage
+        )
+        .map((entry) => ({
+          perc: Number(entry.takeProfit.percentage),
+          price: Number(entry.takeProfit.price),
+        })),
+      sl: Number(formState.takeProfitStopLoss[0].stopLoss.price),
+      quoteLeverage: Number(formState.leverage.firstAsset),
+      baseLeverage: Number(formState.leverage.secondAsset),
+    };
+
+    if (formState.order.type === "limit") {
+      orderPayload.entry = Number(formState.order.price);
+    }
+
+    try {
+      const endpoint = formState.order.type === "market" ? "market" : "limit";
+      const order = await fetch(`https://dev.peripair.trade/v1/${endpoint}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(orderPayload),
+      });
+
+      if (!order.ok) {
+        throw new Error("Failed to place order");
+      }
+
+      toast.success("Order placed successfully");
+      // Reset form state after successful order
+      setFormState((prev) => ({
+        ...prev,
+        order: {
+          ...prev.order,
+          size: "",
+          price: "",
+          sliderValue: 0,
+        },
+        takeProfitStopLoss: [
+          {
+            takeProfit: { price: "", percentage: "" },
             stopLoss: { price: "" },
           },
-        }));
-      } catch (error) {
-        console.error("Error placing market order:", error);
-        toast.error(error.message || "Failed to place order");
-      }
-    } else if (formState.order.type === "limit") {
-      try {
-        const order = fetch("https://dev.peripair.trade/v1/limit", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
-            quote: firstAsset,
-            base: secondAsset,
-            entry: Number(formState.order.price),
-            restingUsdcSize: Number(formState.order.size),
-            slippage: Number(formState.slippage),
-            tp: Number(formState.takeProfitStopLoss.takeProfit.price),
-            sl: Number(formState.takeProfitStopLoss.stopLoss.price),
-            quoteLeverage: Number(formState.leverage.firstAsset),
-            baseLeverage: Number(formState.leverage.secondAsset),
-          }),
-        });
-
-        if (!order.ok) {
-          throw new Error("Failed to place order");
-        }
-
-        toast.success("Order placed successfully");
-        // Reset form state after successful order
-        setFormState((prev) => ({
-          ...prev,
-          order: {
-            ...prev.order,
-            size: "",
-            price: "",
-            sliderValue: 0,
-          },
-          takeProfitStopLoss: {
-            takeProfit: { price: "" },
-            stopLoss: { price: "" },
-          },
-        }));
-      } catch (error) {
-        console.error("Error placing market order:", error);
-        toast.error(error.message || "Failed to place order");
-      }
+        ],
+      }));
+    } catch (error) {
+      console.error("Error placing order:", error);
+      toast.error(error.message || "Failed to place order");
     }
   };
 
@@ -425,7 +416,7 @@ const TradingForm = ({
 
   const verifyBuilderApproved = async () => {
     if (user) {
-      const response = await fetch("https://api.hyperliquid-testnet.xyz/info", {
+      const response = await fetch("https://api.hyperliquid.xyz/info", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -606,48 +597,119 @@ const TradingForm = ({
 
       {/* TP/SL Input Fields */}
       <div className="flex flex-col gap-3 mb-4">
-        <div className="grid grid-cols-2 gap-2">
-          <div className="relative">
-            <input
-              type="text"
-              value={formState.takeProfitStopLoss.takeProfit.price}
-              onChange={(e) =>
-                setFormState((prev) => ({
-                  ...prev,
-                  takeProfitStopLoss: {
-                    ...prev.takeProfitStopLoss,
-                    takeProfit: {
-                      ...prev.takeProfitStopLoss.takeProfit,
-                      price: e.target.value,
-                    },
-                  },
-                }))
-              }
-              placeholder="TP Price"
-              className="w-full px-3 py-2 bg-[#041318] border border-gray-800 rounded text-white placeholder-gray-500 focus:outline-none focus:border-[#50d2c1] text-xs"
-            />
-          </div>
-          <div className="relative">
-            <input
-              type="text"
-              value={formState.takeProfitStopLoss.stopLoss.price}
-              onChange={(e) =>
-                setFormState((prev) => ({
-                  ...prev,
-                  takeProfitStopLoss: {
-                    ...prev.takeProfitStopLoss,
-                    stopLoss: {
-                      ...prev.takeProfitStopLoss.stopLoss,
-                      price: e.target.value,
-                    },
-                  },
-                }))
-              }
-              placeholder="SL Price"
-              className="w-full px-3 py-2 bg-[#041318] border border-gray-800 rounded text-white placeholder-gray-500 focus:outline-none focus:border-[#50d2c1] text-xs"
-            />
-          </div>
+        <div className="max-h-[200px] overflow-y-auto pr-2">
+          {formState.takeProfitStopLoss.map((entry, index) => (
+            <div key={index} className="grid grid-cols-3 gap-2 mb-2">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={entry.takeProfit.price}
+                  onChange={(e) =>
+                    setFormState((prev) => ({
+                      ...prev,
+                      takeProfitStopLoss: prev.takeProfitStopLoss.map(
+                        (item, i) =>
+                          i === index
+                            ? {
+                                ...item,
+                                takeProfit: {
+                                  ...item.takeProfit,
+                                  price: e.target.value,
+                                },
+                              }
+                            : item
+                      ),
+                    }))
+                  }
+                  placeholder="TP Price"
+                  className="w-full px-3 py-2 bg-[#041318] border border-gray-800 rounded text-white placeholder-gray-500 focus:outline-none focus:border-[#50d2c1] text-xs"
+                />
+              </div>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={entry.takeProfit.percentage}
+                  onChange={(e) =>
+                    setFormState((prev) => ({
+                      ...prev,
+                      takeProfitStopLoss: prev.takeProfitStopLoss.map(
+                        (item, i) =>
+                          i === index
+                            ? {
+                                ...item,
+                                takeProfit: {
+                                  ...item.takeProfit,
+                                  percentage: e.target.value,
+                                },
+                              }
+                            : item
+                      ),
+                    }))
+                  }
+                  placeholder="Position %"
+                  className="w-full px-3 py-2 bg-[#041318] border border-gray-800 rounded text-white placeholder-gray-500 focus:outline-none focus:border-[#50d2c1] text-xs"
+                />
+              </div>
+              <div className="relative flex gap-2">
+                <input
+                  type="text"
+                  value={entry.stopLoss.price}
+                  onChange={(e) =>
+                    setFormState((prev) => ({
+                      ...prev,
+                      takeProfitStopLoss: prev.takeProfitStopLoss.map(
+                        (item, i) =>
+                          i === index
+                            ? {
+                                ...item,
+                                stopLoss: {
+                                  ...item.stopLoss,
+                                  price: e.target.value,
+                                },
+                              }
+                            : item
+                      ),
+                    }))
+                  }
+                  placeholder="SL Price"
+                  className="w-full px-3 py-2 bg-[#041318] border border-gray-800 rounded text-white placeholder-gray-500 focus:outline-none focus:border-[#50d2c1] text-xs"
+                />
+                {index > 0 && (
+                  <button
+                    onClick={() =>
+                      setFormState((prev) => ({
+                        ...prev,
+                        takeProfitStopLoss: prev.takeProfitStopLoss.filter(
+                          (_, i) => i !== index
+                        ),
+                      }))
+                    }
+                    className="px-2 py-1 bg-[#ED7088] text-black rounded hover:bg-[#ED7088]/80 text-xs">
+                    -
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
+        {formState.takeProfitStopLoss.length < 5 && (
+          <button
+            onClick={() =>
+              setFormState((prev) => ({
+                ...prev,
+                takeProfitStopLoss: [
+                  ...prev.takeProfitStopLoss,
+                  {
+                    takeProfit: { price: "", percentage: "" },
+                    stopLoss: { price: "" },
+                  },
+                ],
+              }))
+            }
+            className="w-full px-3 py-2 bg-[#293233] text-white rounded hover:bg-[#293233]/80 text-xs">
+            + Add TP/SL
+          </button>
+        )}
       </div>
 
       <div className="mt-auto">
