@@ -89,7 +89,7 @@ const TradingForm = ({
 
   useEffect(() => {
     if (ready && authenticated) {
-      const ws = new WebSocket("wss://api.hyperliquid-testnet.xyz/ws");
+      const ws = new WebSocket("wss://api.hyperliquid.xyz/ws");
 
       ws.onopen = () => {
         ws.send(
