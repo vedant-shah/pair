@@ -52,12 +52,15 @@ const TradingForm = ({
       price: "",
       sliderValue: 0,
     },
-    takeProfitStopLoss: [
-      {
-        takeProfit: { price: "", percentage: "" },
-        stopLoss: { price: "" },
-      },
-    ],
+    takeProfitStopLoss: {
+      stopLoss: { price: "" },
+      takeProfits: [
+        {
+          price: "",
+          percentage: "",
+        },
+      ],
+    },
     leverage: {
       firstAsset: getInitialLeverage(firstAsset),
       secondAsset: getInitialLeverage(secondAsset),
@@ -319,22 +322,22 @@ const TradingForm = ({
       .find((cookie) => cookie.trim().startsWith("privy-token="))
       ?.split("=")[1];
 
-    // Validate TP/SL entries
-    const validTpEntries = formState.takeProfitStopLoss.filter(
-      (entry) =>
-        entry.takeProfit.price &&
-        entry.takeProfit.percentage &&
-        entry.stopLoss.price
+    // Validate TP entries and SL
+    const validTpEntries = formState.takeProfitStopLoss.takeProfits.filter(
+      (entry) => entry.price && entry.percentage
     );
 
-    if (validTpEntries.length === 0) {
-      toast.error("At least one complete set of TP/SL is required");
+    if (
+      validTpEntries.length === 0 ||
+      !formState.takeProfitStopLoss.stopLoss.price
+    ) {
+      toast.error("At least one take profit and stop loss price are required");
       return;
     }
 
     // Calculate total TP percentage
     const totalTpPercentage = validTpEntries.reduce(
-      (sum, entry) => sum + Number(entry.takeProfit.percentage),
+      (sum, entry) => sum + Number(entry.percentage),
       0
     );
 
@@ -349,15 +352,13 @@ const TradingForm = ({
       base: secondAsset,
       restingUsdcSize: Number(formState.order.size),
       slippage: Number(formState.slippage),
-      tp: formState.takeProfitStopLoss
-        .filter(
-          (entry) => entry.takeProfit.price && entry.takeProfit.percentage
-        )
+      tp: formState.takeProfitStopLoss.takeProfits
+        .filter((entry) => entry.price && entry.percentage)
         .map((entry) => ({
-          perc: Number(entry.takeProfit.percentage),
-          price: Number(entry.takeProfit.price),
+          perc: Number(entry.percentage),
+          price: Number(entry.price),
         })),
-      sl: Number(formState.takeProfitStopLoss[0].stopLoss.price),
+      sl: Number(formState.takeProfitStopLoss.stopLoss.price),
       quoteLeverage: Number(formState.leverage.firstAsset),
       baseLeverage: Number(formState.leverage.secondAsset),
     };
@@ -391,12 +392,10 @@ const TradingForm = ({
           price: "",
           sliderValue: 0,
         },
-        takeProfitStopLoss: [
-          {
-            takeProfit: { price: "", percentage: "" },
-            stopLoss: { price: "" },
-          },
-        ],
+        takeProfitStopLoss: {
+          stopLoss: { price: "" },
+          takeProfits: [{ price: "", percentage: "" }],
+        },
       }));
     } catch (error) {
       console.error("Error placing order:", error);
@@ -442,279 +441,284 @@ const TradingForm = ({
 
   return (
     <div className="flex flex-col h-full bg-[#041318] p-2 text-xs">
-      {/* Cross and 20x buttons */}
-      <div className="flex gap-2 mb-4">
-        <Button
-          variant="outline"
-          className="flex-1 bg-[#293233] hover:bg-[#2f393a] text-white border-0 text-xs">
-          Cross
-        </Button>
-        <Button
-          variant="outline"
-          onClick={() =>
-            setFormState((prev) => ({
-              ...prev,
-              modals: { ...prev.modals, leverage: true },
-            }))
-          }
-          className="flex-1 bg-[#293233] hover:bg-[#2f393a] text-white border-0 text-xs">
-          {formState.leverage.firstAsset}x / {formState.leverage.secondAsset}x
-        </Button>
-      </div>
-
-      {/* Order Type Tabs */}
-      <Tabs
-        defaultValue="market"
-        className="mb-4"
-        onValueChange={(value) =>
-          setFormState((prev) => ({
-            ...prev,
-            order: { ...prev.order, type: value },
-          }))
-        }>
-        <TabsList className="w-full p-0 text-xs bg-transparent border-b border-gray-800 rounded-none">
-          <TabsTrigger
-            value="market"
-            className="flex-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-[#50d2c1] data-[state=active]:border-b-2 data-[state=active]:border-[#50d2c1] rounded-none text-xs">
-            Market
-          </TabsTrigger>
-          <TabsTrigger
-            value="limit"
-            className="flex-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-[#50d2c1] data-[state=active]:border-b-2 data-[state=active]:border-[#50d2c1] rounded-none text-xs">
-            Limit
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
-
-      {/* Buy/Sell Buttons */}
-      <div className="flex gap-2 mb-4">
-        <Button
-          variant={buyOrSell === "buy" ? "default" : "outline"}
-          className={`flex-1 text-xs ${
-            buyOrSell === "buy"
-              ? "bg-[#50d2c1] hover:bg-[#50d2c1]/90 text-black"
-              : "text-[#50d2c1] border-[#50d2c1] hover:bg-[#50d2c1]/10"
-          }`}
-          onClick={() => setBuyOrSell("buy")}>
-          Buy / Long
-        </Button>
-        <Button
-          variant={buyOrSell === "sell" ? "default" : "outline"}
-          className={`flex-1 text-xs ${
-            buyOrSell === "sell"
-              ? "bg-[#ED7088] hover:bg-[#ED7088]/90 text-black"
-              : "text-[#ED7088] border-[#ED7088] hover:bg-[#ED7088]/10"
-          }`}
-          onClick={() => setBuyOrSell("sell")}>
-          Sell / Short
-        </Button>
-      </div>
-
-      {/* Trading Info */}
-      <div className="flex justify-between mb-4 text-xs">
-        <span className="text-gray-400">Available to Trade</span>
-        <span className="text-white">
-          {formatNumber(
-            Number(
-              formState.webData2?.clearinghouseState?.marginSummary
-                ?.accountValue
-            ) -
-              Number(
-                formState.webData2?.clearinghouseState?.marginSummary
-                  ?.totalMarginUsed
-              ),
-            2
-          ) || "0.00"}{" "}
-          USD
-        </span>
-      </div>
-
-      {/* Price Input for Limit Orders */}
-      {formState.order.type === "limit" && (
-        <div className="relative mb-4">
-          <input
-            type="text"
-            value={formState.order.price}
-            onChange={(e) =>
-              setFormState((prev) => ({
-                ...prev,
-                order: { ...prev.order, price: e.target.value },
-              }))
-            }
-            placeholder="Price"
-            className="w-full px-3 py-2 bg-[#041318] border border-gray-800 rounded text-white placeholder-gray-500 focus:outline-none focus:border-[#50d2c1] text-xs"
-          />
-          <button
-            onClick={() => {
-              if (
-                formState.webData2?.clearinghouseState?.marginSummary?.midPx
-              ) {
-                setFormState((prev) => ({
-                  ...prev,
-                  order: {
-                    ...prev.order,
-                    price: formatNumber(
-                      formState.webData2.clearinghouseState.marginSummary.midPx,
-                      2
-                    ),
-                  },
-                }));
-              }
-            }}
-            className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-[#293233] rounded text-gray-400 hover:text-white text-xs">
-            Mid
-          </button>
-        </div>
-      )}
-
-      {/* Size Input */}
-      <div className="relative mb-4">
-        <input
-          type="text"
-          value={formState.order.size} // Use raw string value instead of formatted
-          onChange={handleSizeChange}
-          placeholder="Size"
-          className="w-full px-3 py-2 bg-[#041318] border border-gray-800 rounded text-white placeholder-gray-500 focus:outline-none focus:border-[#50d2c1] text-xs"
-        />
-        <button className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-[#293233] rounded text-white text-xs">
-          {formState.order.sizeUnit}
-        </button>
-      </div>
-
-      {/* Slider */}
-      <div className="mb-4">
-        <Slider
-          value={[formState.order.sliderValue]}
-          onValueChange={([value]) => handleSliderChange(value)}
-          max={100}
-          min={0}
-          step={1}
-        />
-        <div className="flex justify-end mt-1 text-xs text-white">
-          {formState.order.sliderValue}%
-        </div>
-      </div>
-
-      {/* TP/SL Input Fields */}
-      <div className="flex flex-col gap-3 mb-4">
-        <div className="max-h-[200px] overflow-y-auto pr-2">
-          {formState.takeProfitStopLoss.map((entry, index) => (
-            <div key={index} className="grid grid-cols-3 gap-2 mb-2">
-              <div className="relative">
-                <input
-                  type="text"
-                  value={entry.takeProfit.price}
-                  onChange={(e) =>
-                    setFormState((prev) => ({
-                      ...prev,
-                      takeProfitStopLoss: prev.takeProfitStopLoss.map(
-                        (item, i) =>
-                          i === index
-                            ? {
-                                ...item,
-                                takeProfit: {
-                                  ...item.takeProfit,
-                                  price: e.target.value,
-                                },
-                              }
-                            : item
-                      ),
-                    }))
-                  }
-                  placeholder="TP Price"
-                  className="w-full px-3 py-2 bg-[#041318] border border-gray-800 rounded text-white placeholder-gray-500 focus:outline-none focus:border-[#50d2c1] text-xs"
-                />
-              </div>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={entry.takeProfit.percentage}
-                  onChange={(e) =>
-                    setFormState((prev) => ({
-                      ...prev,
-                      takeProfitStopLoss: prev.takeProfitStopLoss.map(
-                        (item, i) =>
-                          i === index
-                            ? {
-                                ...item,
-                                takeProfit: {
-                                  ...item.takeProfit,
-                                  percentage: e.target.value,
-                                },
-                              }
-                            : item
-                      ),
-                    }))
-                  }
-                  placeholder="Position %"
-                  className="w-full px-3 py-2 bg-[#041318] border border-gray-800 rounded text-white placeholder-gray-500 focus:outline-none focus:border-[#50d2c1] text-xs"
-                />
-              </div>
-              <div className="relative flex gap-2">
-                <input
-                  type="text"
-                  value={entry.stopLoss.price}
-                  onChange={(e) =>
-                    setFormState((prev) => ({
-                      ...prev,
-                      takeProfitStopLoss: prev.takeProfitStopLoss.map(
-                        (item, i) =>
-                          i === index
-                            ? {
-                                ...item,
-                                stopLoss: {
-                                  ...item.stopLoss,
-                                  price: e.target.value,
-                                },
-                              }
-                            : item
-                      ),
-                    }))
-                  }
-                  placeholder="SL Price"
-                  className="w-full px-3 py-2 bg-[#041318] border border-gray-800 rounded text-white placeholder-gray-500 focus:outline-none focus:border-[#50d2c1] text-xs"
-                />
-                {index > 0 && (
-                  <button
-                    onClick={() =>
-                      setFormState((prev) => ({
-                        ...prev,
-                        takeProfitStopLoss: prev.takeProfitStopLoss.filter(
-                          (_, i) => i !== index
-                        ),
-                      }))
-                    }
-                    className="px-2 py-1 bg-[#ED7088] text-black rounded hover:bg-[#ED7088]/80 text-xs">
-                    -
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-        {formState.takeProfitStopLoss.length < 5 && (
-          <button
+      {/* Top section */}
+      <div className="flex flex-col flex-1 min-h-0">
+        {/* Cross and 20x buttons */}
+        <div className="flex gap-2 mb-4">
+          <Button
+            variant="outline"
+            className="flex-1 bg-[#293233] hover:bg-[#2f393a] text-white border-0 text-xs">
+            Cross
+          </Button>
+          <Button
+            variant="outline"
             onClick={() =>
               setFormState((prev) => ({
                 ...prev,
-                takeProfitStopLoss: [
-                  ...prev.takeProfitStopLoss,
-                  {
-                    takeProfit: { price: "", percentage: "" },
-                    stopLoss: { price: "" },
-                  },
-                ],
+                modals: { ...prev.modals, leverage: true },
               }))
             }
-            className="w-full px-3 py-2 bg-[#293233] text-white rounded hover:bg-[#293233]/80 text-xs">
-            + Add TP/SL
-          </button>
+            className="flex-1 bg-[#293233] hover:bg-[#2f393a] text-white border-0 text-xs">
+            {formState.leverage.firstAsset}x / {formState.leverage.secondAsset}x
+          </Button>
+        </div>
+
+        {/* Order Type Tabs */}
+        <Tabs
+          defaultValue="market"
+          className="mb-4"
+          onValueChange={(value) =>
+            setFormState((prev) => ({
+              ...prev,
+              order: { ...prev.order, type: value },
+            }))
+          }>
+          <TabsList className="w-full p-0 text-xs bg-transparent border-b border-gray-800 rounded-none">
+            <TabsTrigger
+              value="market"
+              className="flex-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-[#50d2c1] data-[state=active]:border-b-2 data-[state=active]:border-[#50d2c1] rounded-none text-xs">
+              Market
+            </TabsTrigger>
+            <TabsTrigger
+              value="limit"
+              className="flex-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-[#50d2c1] data-[state=active]:border-b-2 data-[state=active]:border-[#50d2c1] rounded-none text-xs">
+              Limit
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        {/* Buy/Sell Buttons */}
+        <div className="flex gap-2 mb-4">
+          <Button
+            variant={buyOrSell === "buy" ? "default" : "outline"}
+            className={`flex-1 text-xs ${
+              buyOrSell === "buy"
+                ? "bg-[#50d2c1] hover:bg-[#50d2c1]/90 text-black"
+                : "text-[#50d2c1] border-[#50d2c1] hover:bg-[#50d2c1]/10"
+            }`}
+            onClick={() => setBuyOrSell("buy")}>
+            Buy / Long
+          </Button>
+          <Button
+            variant={buyOrSell === "sell" ? "default" : "outline"}
+            className={`flex-1 text-xs ${
+              buyOrSell === "sell"
+                ? "bg-[#ED7088] hover:bg-[#ED7088]/90 text-black"
+                : "text-[#ED7088] border-[#ED7088] hover:bg-[#ED7088]/10"
+            }`}
+            onClick={() => setBuyOrSell("sell")}>
+            Sell / Short
+          </Button>
+        </div>
+
+        {/* Trading Info */}
+        <div className="flex justify-between mb-4 text-xs">
+          <span className="text-gray-400">Available to Trade</span>
+          <span className="text-white">
+            {formatNumber(
+              Number(
+                formState.webData2?.clearinghouseState?.marginSummary
+                  ?.accountValue
+              ) -
+                Number(
+                  formState.webData2?.clearinghouseState?.marginSummary
+                    ?.totalMarginUsed
+                ),
+              2
+            ) || "0.00"}{" "}
+            USD
+          </span>
+        </div>
+
+        {/* Price Input for Limit Orders */}
+        {formState.order.type === "limit" && (
+          <div className="relative mb-4">
+            <input
+              type="text"
+              value={formState.order.price}
+              onChange={(e) =>
+                setFormState((prev) => ({
+                  ...prev,
+                  order: { ...prev.order, price: e.target.value },
+                }))
+              }
+              placeholder="Price"
+              className="w-full px-3 py-2 bg-[#041318] border border-gray-800 rounded text-white placeholder-gray-500 focus:outline-none focus:border-[#50d2c1] text-xs"
+            />
+            <button
+              onClick={() => {
+                if (
+                  formState.webData2?.clearinghouseState?.marginSummary?.midPx
+                ) {
+                  setFormState((prev) => ({
+                    ...prev,
+                    order: {
+                      ...prev.order,
+                      price: formatNumber(
+                        formState.webData2.clearinghouseState.marginSummary
+                          .midPx,
+                        2
+                      ),
+                    },
+                  }));
+                }
+              }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-[#293233] rounded text-gray-400 hover:text-white text-xs">
+              Mid
+            </button>
+          </div>
         )}
+
+        {/* Size Input */}
+        <div className="relative mb-4">
+          <input
+            type="text"
+            value={formState.order.size} // Use raw string value instead of formatted
+            onChange={handleSizeChange}
+            placeholder="Size"
+            className="w-full px-3 py-2 bg-[#041318] border border-gray-800 rounded text-white placeholder-gray-500 focus:outline-none focus:border-[#50d2c1] text-xs"
+          />
+          <button className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-[#293233] rounded text-white text-xs">
+            {formState.order.sizeUnit}
+          </button>
+        </div>
+
+        {/* Slider */}
+        <div className="mb-4">
+          <Slider
+            value={[formState.order.sliderValue]}
+            onValueChange={([value]) => handleSliderChange(value)}
+            max={100}
+            min={0}
+            step={1}
+          />
+          <div className="flex justify-end mt-1 text-xs text-white">
+            {formState.order.sliderValue}%
+          </div>
+        </div>
+
+        {/* TP/SL Input Fields - Make this section scrollable */}
+        <div className="flex-1 min-h-0 flex flex-col gap-3 mb-4 overflow-hidden">
+          {/* Single Stop Loss Input - Keep this fixed */}
+          <div className="relative flex-shrink-0">
+            <input
+              type="text"
+              value={formState.takeProfitStopLoss.stopLoss.price}
+              onChange={(e) =>
+                setFormState((prev) => ({
+                  ...prev,
+                  takeProfitStopLoss: {
+                    ...prev.takeProfitStopLoss,
+                    stopLoss: { price: e.target.value },
+                  },
+                }))
+              }
+              placeholder="Stop Loss Price"
+              className="w-full px-3 py-2 bg-[#041318] border border-gray-800 rounded text-white placeholder-gray-500 focus:outline-none focus:border-[#50d2c1] text-xs"
+            />
+          </div>
+
+          {/* Scrollable Take Profit Section */}
+          <div className="flex-1 min-h-0 overflow-y-auto pr-2">
+            <div className="space-y-2">
+              {formState.takeProfitStopLoss.takeProfits.map((tp, index) => (
+                <div key={index} className="grid grid-cols-2 gap-2">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={tp.price}
+                      onChange={(e) =>
+                        setFormState((prev) => ({
+                          ...prev,
+                          takeProfitStopLoss: {
+                            ...prev.takeProfitStopLoss,
+                            takeProfits:
+                              prev.takeProfitStopLoss.takeProfits.map(
+                                (item, i) =>
+                                  i === index
+                                    ? { ...item, price: e.target.value }
+                                    : item
+                              ),
+                          },
+                        }))
+                      }
+                      placeholder="TP Price"
+                      className="w-full px-3 py-2 bg-[#041318] border border-gray-800 rounded text-white placeholder-gray-500 focus:outline-none focus:border-[#50d2c1] text-xs"
+                    />
+                  </div>
+                  <div className="relative flex gap-2">
+                    <input
+                      type="text"
+                      value={tp.percentage}
+                      onChange={(e) =>
+                        setFormState((prev) => ({
+                          ...prev,
+                          takeProfitStopLoss: {
+                            ...prev.takeProfitStopLoss,
+                            takeProfits:
+                              prev.takeProfitStopLoss.takeProfits.map(
+                                (item, i) =>
+                                  i === index
+                                    ? { ...item, percentage: e.target.value }
+                                    : item
+                              ),
+                          },
+                        }))
+                      }
+                      placeholder="Position %"
+                      className="w-full px-3 py-2 bg-[#041318] border border-gray-800 rounded text-white placeholder-gray-500 focus:outline-none focus:border-[#50d2c1] text-xs"
+                    />
+                    {index > 0 && (
+                      <button
+                        onClick={() =>
+                          setFormState((prev) => ({
+                            ...prev,
+                            takeProfitStopLoss: {
+                              ...prev.takeProfitStopLoss,
+                              takeProfits:
+                                prev.takeProfitStopLoss.takeProfits.filter(
+                                  (_, i) => i !== index
+                                ),
+                            },
+                          }))
+                        }
+                        className="px-2 py-1 bg-[#ED7088] text-black rounded hover:bg-[#ED7088]/80 text-xs">
+                        -
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Add Take Profit Button - Keep this fixed */}
+          {formState.takeProfitStopLoss.takeProfits.length < 5 && (
+            <div className="flex-shrink-0">
+              <button
+                onClick={() =>
+                  setFormState((prev) => ({
+                    ...prev,
+                    takeProfitStopLoss: {
+                      ...prev.takeProfitStopLoss,
+                      takeProfits: [
+                        ...prev.takeProfitStopLoss.takeProfits,
+                        { price: "", percentage: "" },
+                      ],
+                    },
+                  }))
+                }
+                className="w-full px-3 py-2 bg-[#293233] text-white rounded hover:bg-[#293233]/80 text-xs">
+                + Add Take Profit
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="mt-auto">
+      {/* Bottom section - Keep this fixed */}
+      <div className="flex-shrink-0">
         <hr className="my-2 border-gray-800" />
-
         <div className="flex justify-between mb-2 text-xs">
           <span className="text-gray-400">Margin Required</span>
           <span className="text-white">

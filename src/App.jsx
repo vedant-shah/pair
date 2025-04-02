@@ -151,6 +151,7 @@ const TradingView = () => {
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
+          // console.log(data);
           const candleData = {
             candle: {
               time: Date.parse(data["0"]["data"][0]) / 1000,

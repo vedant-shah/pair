@@ -51,9 +51,9 @@ function Chart({
       });
 
       const data = await response.json();
-
+      // console.log(data);
       return data
-        .map((candle) => {
+        ?.map((candle) => {
           return {
             t: new Date(candle[0]),
             o: candle[1],
