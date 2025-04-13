@@ -93,31 +93,6 @@ function ApiWallet() {
       toast.error("Please fill in all fields");
       return;
     }
-
-    // if (!window.ethereum) {
-    //   return;
-    // }
-    // let providerToUse = window.ethereum;
-
-    // console.log("providerToUse:", providerToUse);
-
-    // await window.ethereum.send("eth_requestAccounts");
-    // const provider = new ethers.BrowserProvider(window.ethereum);
-    // const signer = await provider.getSigner();
-    // const signature = await signer.signMessage(
-    //   JSON.stringify(
-    //     {
-    //       name: formData.walletName,
-    //       api_key: formData.privateKey,
-    //       nonce: Date.now(),
-    //     },
-    //     null,
-    //     "\t"
-    //   )
-    // );
-    // const address = await signer.getAddress();
-
-    // return;
     setIsSubmitting(true);
     try {
       const accessToken = await getAccessToken();

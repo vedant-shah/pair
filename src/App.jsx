@@ -19,6 +19,7 @@ const RestrictedAccess = lazy(() =>
   import("./components/pages/RestrictedAccess")
 );
 const ApiWallet = lazy(() => import("./components/pages/ApiWallet"));
+const Migration = lazy(() => import("./components/pages/Migration"));
 // Tab configuration
 const TABS = [
   { id: "chart", label: "Chart" },
@@ -372,18 +373,35 @@ const Root = () => {
           </Suspense>
         }
       />
+      <Route
+        path="/migration"
+        element={
+          <Suspense fallback={<LoadingSpinner />}>
+            <Migration />
+          </Suspense>
+        }
+      />
     </Routes>
   );
 };
 
 function App() {
   return (
-    <>
-      <Toaster position="top-right" theme="dark" richColors duration={3000} />
-      <Router>
-        <Root />
-      </Router>
-    </>
+    <Router>
+      <div className="min-h-screen bg-[#041318]">
+        <Navbar />
+        <Suspense fallback={<LoadingSpinner />}>
+          <Routes>
+            <Route path="/" element={<Navigate to="/trade" />} />
+            <Route path="/trade" element={<TradingView />} />
+            <Route path="/restricted" element={<RestrictedAccess />} />
+            <Route path="/api-wallet" element={<ApiWallet />} />
+            <Route path="/migration" element={<Migration />} />
+          </Routes>
+        </Suspense>
+        <Toaster position="top-right" richColors />
+      </div>
+    </Router>
   );
 }
 

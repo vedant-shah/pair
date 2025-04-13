@@ -643,12 +643,15 @@ const UserPanel = () => {
         // create and store a cookie with the access token
         document.cookie = `privy-token=${accessToken}; path=/`;
       }
-      const response = await fetch("https://dev.peripair.trade/v1/positions", {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
+      const response = await fetch(
+        "https://dev.peripair.trade/v1/inactive_positions",
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
       const data = await response.json();
       return data;
     } catch (error) {
